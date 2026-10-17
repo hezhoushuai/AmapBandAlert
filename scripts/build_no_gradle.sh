@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # 无Gradle构建: aapt2 + javac + d8 + zipalign + apksigner
 # 参考 amap-companion 的构建方式, 依赖 runner 自带的 Android SDK build-tools
-set -x\necho "SDK=$SDK"\necho "BT=$BT"\necho "PLATFORM=$PLATFORM"
+set -x
+echo "SDK=$SDK"
+echo "BT=$BT"
+echo "PLATFORM=$PLATFORM"
 
 SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
 BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)

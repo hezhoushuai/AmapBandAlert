@@ -48,7 +48,7 @@ jobs:
             cp /tmp/build_output.txt ./full_output.txt
             git add -A
             git commit -qm "build log $(date -u +%Y%m%d%H%M%S)"
-            git push -q origin build-logs
+            git push -qf origin build-logs
             echo "❌ 构建失败, 日志已推 build-logs 分支" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
@@ -61,5 +61,5 @@ jobs:
           ls -la apks/
           git add -A
           git commit -qm "APK $(date -u +%Y%m%d%H%M%S)"
-          git push -q origin apk-delivery
+          git push -qf origin apk-delivery
           echo "✅ APK已推送到 apk-delivery 分支" >> $GITHUB_STEP_SUMMARY
