@@ -68,5 +68,7 @@ jobs:
           ls -la apks/
           git add -A
           git commit -qm "APK $(date -u +%Y%m%d%H%M%S)"
-          git push -qf origin apk-delivery
+          git push -f origin apk-delivery 2>/tmp/push_err.txt || true
+          echo "--- push输出 ---" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/push_err.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
           echo "✅ APK已推送到 apk-delivery 分支" >> $GITHUB_STEP_SUMMARY
