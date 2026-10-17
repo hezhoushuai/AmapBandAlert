@@ -8,8 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +17,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Set up Gradle 8.8
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+
       - name: Build Debug APK
         working-directory: android-app
         run: |
@@ -27,7 +30,6 @@ jobs:
           code=$?
           tail -80 /tmp/gradle_output.txt > /tmp/error_tail.txt
           if [ $code -ne 0 ]; then
-            # 把错误日志推到 build-logs 分支, 匿名可读
             mkdir -p /tmp/logrepo
             cd /tmp/logrepo
             git init -q
