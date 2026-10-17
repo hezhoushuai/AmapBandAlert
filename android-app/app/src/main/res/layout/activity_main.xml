@@ -1,34 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent" android:padding="24dp">
+    android:layout_height="match_parent"
+    android:background="#121212" android:padding="20dp">
 
+    <!-- 标题 -->
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="AmapBandAlert" android:textSize="28sp" android:textStyle="bold"/>
+        android:text="AmapBandAlert" android:textSize="26sp" android:textStyle="bold"
+        android:textColor="#FFFFFF"/>
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="高德限速拍照 → 手环震动" android:textSize="14sp" android:paddingBottom="16dp"/>
+        android:text="高德导航 · 限速拍照 · 手环震动提醒"
+        android:textSize="13sp" android:textColor="#888888"
+        android:paddingBottom="16dp"/>
 
-    <TextView android:id="@+id/status" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="状态: 未启动"
-        android:textSize="16sp" android:paddingBottom="20dp"/>
+    <!-- 状态卡 -->
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:background="#1E1E1E"
+        android:padding="16dp">
+        <TextView android:id="@+id/status_card" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="● 待机"
+            android:textSize="18sp" android:textColor="#4CAF50" android:textStyle="bold"/>
+        <TextView android:id="@+id/last_alert" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="最近预警: 无"
+            android:textSize="13sp" android:textColor="#999999" android:paddingTop="6dp"/>
+    </LinearLayout>
 
+    <!-- 操作按钮 -->
     <Button android:id="@+id/btn_start" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="启动监听服务"/>
-
+        android:layout_height="52dp" android:layout_marginTop="16dp"
+        android:text="启动监听" android:textSize="16sp"
+        android:background="#2E7D32" android:textColor="#FFFFFF"/>
     <Button android:id="@+id/btn_test" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="发送测试通知(验证手环链路)"/>
+        android:layout_height="48dp" android:layout_marginTop="10dp"
+        android:text="发送测试通知(验证手环链路)" android:textSize="14sp"
+        android:background="#37474F" android:textColor="#FFFFFF"/>
+    <Button android:id="@+id/btn_log" android:layout_width="match_parent"
+        android:layout_height="48dp" android:layout_marginTop="10dp"
+        android:text="运行日志" android:textSize="14sp"
+        android:background="#37474F" android:textColor="#FFFFFF"/>
+
+    <!-- 设置 -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="设置" android:textSize="16sp" android:textColor="#FFFFFF"
+        android:textStyle="bold" android:paddingTop="24dp" android:paddingBottom="8dp"/>
 
     <TextView android:id="@+id/label_dist" android:layout_width="wrap_content"
-        android:layout_height="wrap_content" android:text="预警距离: 300m"
-        android:paddingTop="24dp" android:textSize="16sp"/>
+        android:layout_height="wrap_content" android:text="电子眼预警距离: 300m"
+        android:textSize="14sp" android:textColor="#CCCCCC"/>
     <SeekBar android:id="@+id/bar_dist" android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 
     <ToggleButton android:id="@+id/toggle_camera" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textOn="电子眼提醒: 开"
-        android:textOff="电子眼提醒: 关" android:checked="true" android:paddingTop="12dp"/>
-
+        android:layout_height="wrap_content" android:textOn="电子眼预警: 开"
+        android:textOff="电子眼预警: 关" android:checked="true"
+        android:layout_marginTop="8dp"/>
     <ToggleButton android:id="@+id/toggle_speed" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:textOn="超速提醒: 开"
-        android:textOff="超速提醒: 关" android:checked="true"/>
+        android:textOff="超速提醒: 关" android:checked="true"
+        android:layout_marginTop="8dp"/>
+
+    <!-- 说明 -->
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="需要配合小米运动健康的通知转发使用。高德地图的模拟导航同样会触发预警, 可用于在家测试。"
+        android:textSize="12sp" android:textColor="#666666"
+        android:paddingTop="20dp"/>
 </LinearLayout>

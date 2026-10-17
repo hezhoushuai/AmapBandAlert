@@ -4,15 +4,16 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class MainActivity extends Activity implements AlertEngine.Listener {
 
-    private TextView statusText;
+    private TextView statusCard;
+    private TextView lastAlertText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -20,54 +21,62 @@ public class MainActivity extends Activity implements AlertEngine.Listener {
         setContentView(R.layout.activity_main);
 
         AlertNotifier.ensureChannels(this);
+        AlertEngine.get().setListener(this);
 
-        statusText = findViewById(R.id.status);
-        Button testBtn = findViewById(R.id.btn_test);
+        statusCard = findViewById(R.id.status_card);
+        lastAlertText = findViewById(R.id.last_alert);
         Button startBtn = findViewById(R.id.btn_start);
+        Button testBtn = findViewById(R.id.btn_test);
+        Button logBtn = findViewById(R.id.btn_log);
         SeekBar distBar = findViewById(R.id.bar_dist);
-        final TextView distLabel = findViewById(R.id.label_dist);
+        TextView distLabel = findViewById(R.id.label_dist);
         ToggleButton cameraToggle = findViewById(R.id.toggle_camera);
         ToggleButton speedToggle = findViewById(R.id.toggle_speed);
-
-        testBtn.setOnClickListener(v -> {
-            AlertNotifier.ensureChannels(this);
-            AlertNotifier.notifyTest(this);
-            statusText.setText("测试通知已发出, 看手环是否震动");
-        });
 
         startBtn.setOnClickListener(v -> {
             Intent i = new Intent(this, MonitorService.class);
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(i);
             else startService(i);
-            statusText.setText("监听服务已启动");
+            statusCard.setText("● 监听中");
+            Toast.makeText(this, "监听已启动", Toast.LENGTH_SHORT).show();
         });
 
-        distBar.setMax(4); // 100/200/300/500
+        testBtn.setOnClickListener(v -> AlertEngine.get().fireTestAlert());
+
+        logBtn.setOnClickListener(v ->
+                startActivity(new Intent(this, LogActivity.class)));
+
+        int[] dists = {100, 200, 300, 500};
+        distBar.setMax(4);
         distBar.setProgress(2);
-        distLabel.setText("预警距离: 300m");
         distBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
-                int[] d = {100, 200, 300, 500};
-                distLabel.setText("预警距离: " + d[p] + "m");
-                AlertEngine.get().setCameraAlertDistance(d[p]);
+            @Override public void onProgressChanged(SeekBar sb, int p, boolean b) {
+                distLabel.setText("电子眼预警距离: " + dists[p] + "m");
+                AlertEngine.get().setCameraAlertDistance(dists[p]);
             }
             @Override public void onStartTrackingTouch(SeekBar sb) {}
             @Override public void onStopTrackingTouch(SeekBar sb) {}
         });
 
-        cameraToggle.setChecked(true);
-        cameraToggle.setOnCheckedChangeListener((b, checked) -> AlertEngine.get().setCameraEnabled(checked));
-        speedToggle.setChecked(true);
-        speedToggle.setOnCheckedChangeListener((b, checked) -> AlertEngine.get().setOverspeedEnabled(checked));
+        cameraToggle.setOnCheckedChangeListener((b, on) ->
+                AlertEngine.get().setCameraEnabled(on));
+        speedToggle.setOnCheckedChangeListener((b, on) ->
+                AlertEngine.get().setOverspeedEnabled(on));
 
-        AlertEngine.get().setListener(this);
+        updateStatus("待机 · 点启动开始监听");
+    }
+
+    private void updateStatus(String s) {
+        statusCard.setText("● " + s);
     }
 
     @Override
     public void onCameraAlert(int distM, int limitSpeed, int curSpeed) {
         runOnUiThread(() -> {
             AlertNotifier.notifyCamera(this, distM, limitSpeed, curSpeed);
-            statusText.setText("⚠️ 触发: 限速拍照 " + distM + "m 限" + limitSpeed);
+            lastAlertText.setText("最近预警: 限速拍照 " + distM + "m" +
+                    (limitSpeed > 0 ? " · 限" + limitSpeed : ""));
+            updateStatus("⚠️ 已触发电子眼预警");
         });
     }
 
@@ -75,7 +84,7 @@ public class MainActivity extends Activity implements AlertEngine.Listener {
     public void onOverspeed(int curSpeed, int limitSpeed) {
         runOnUiThread(() -> {
             AlertNotifier.notifyOverspeed(this, curSpeed, limitSpeed);
-            statusText.setText("🚨 触发: 超速 " + curSpeed + "/" + limitSpeed);
+            lastAlertText.setText("最近预警: 超速 " + curSpeed + "/" + limitSpeed);
         });
     }
 }

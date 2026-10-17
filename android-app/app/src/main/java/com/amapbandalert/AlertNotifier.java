@@ -54,6 +54,7 @@ public final class AlertNotifier {
     }
 
     private static void post(Context ctx, String title, String text, boolean alert) {
+        AlertLogger.log(AlertLogger.Tag.INFO, "发通知: " + title + " " + text);
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
         Notification.Builder b = new Notification.Builder(ctx, alert ? CHANNEL_ID : CHANNEL_ID_SILENT)
                 .setSmallIcon(android.R.drawable.stat_notify_error) // TODO 换自定义图标

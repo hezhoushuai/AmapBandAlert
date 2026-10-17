@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.amapbandalert">
-<application
+
+    <!-- 发通知到通知栏(小米运动健康转发到手环震动) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 前台服务保活, 防止骑行中被系统杀掉 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- 手机本地震动(备用提醒通道) -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <application
         android:label="AmapBandAlert"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.AmapBandAlert">
@@ -12,6 +21,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- 日志查看页 -->
+        <activity android:name=".LogActivity" android:exported="false"
+            android:label="运行日志"/>
 
         <service android:name=".MonitorService"
             android:foregroundServiceType="specialUse"

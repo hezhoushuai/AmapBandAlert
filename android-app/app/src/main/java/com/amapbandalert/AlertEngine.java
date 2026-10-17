@@ -55,7 +55,10 @@ public final class AlertEngine {
     private void checkCamera(int curSpeed, int type, int dist, int limit) {
         if (type == 0 || dist <= 0) { 
             // 无电子眼数据; 若之前接近过且现已越过, 重置防抖
-            if (lastCameraDist < CAMERA_PASS_DIST && dist == 0) resetCameraDebounce();
+            if (lastCameraDist < CAMERA_PASS_DIST && dist == 0) {
+                resetCameraDebounce();
+                AlertLogger.log(AlertLogger.Tag.INFO, "电子眼已通过, 防抖重置");
+            }
             lastCameraDist = dist;
             return;
         }
@@ -65,6 +68,8 @@ public final class AlertEngine {
             // 距离在靠近(而非远离)才触发, 避免倒放/掉头重复
             if (dist <= lastCameraDist || lastCameraDist == Integer.MAX_VALUE) {
                 lastCameraAlertAt = now;
+                AlertLogger.log(AlertLogger.Tag.ALERT,
+                        "⚡电子眼预警 type=" + type + " dist=" + dist + "m 限速" + limit);
                 if (listener != null) listener.onCameraAlert(dist, limit, curSpeed);
             }
         }
@@ -76,6 +81,7 @@ public final class AlertEngine {
         if (curSpeed > limit) {
             if (overspeedSince == 0) overspeedSince = now;
             else if (now - overspeedSince >= OVERSPEED_MIN_DURATION_MS && listener != null) {
+                AlertLogger.log(AlertLogger.Tag.ALERT, "🚨超速 " + curSpeed + "/" + limit + " 持续超5s");
                 listener.onOverspeed(curSpeed, limit);
                 overspeedSince = now + 30_000; // 提醒后30s内不重复
             }
@@ -88,6 +94,7 @@ public final class AlertEngine {
 
     /** 测试按钮用: 模拟一次电子眼预警, 不依赖高德 */
     public void fireTestAlert() {
+        AlertLogger.log(AlertLogger.Tag.INFO, "手动触发测试预警");
         if (listener != null) listener.onCameraAlert(300, 60, 45);
     }
 }
