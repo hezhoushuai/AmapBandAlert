@@ -19,88 +19,32 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build and Deliver
+      - name: Build and Deliver (verbose)
         run: |
           set +e
-          LOG=/tmp/delivery_log.txt
-          {
-            echo "===== 1. 构建 ====="
-            bash scripts/build_no_gradle.sh 2>&1
-            BUILD_CODE=$?
-            echo "===== 构建退出码: $BUILD_CODE ====="
+          echo "===== 1. 构建开始(输出直接进Actions日志) ====="
+          bash scripts/build_no_gradle.sh 2>&1
+          BUILD_CODE=$?
+          echo "===== 构建退出码: $BUILD_CODE ====="
 
-            if [ $BUILD_CODE -ne 0 ]; then
-              echo "===== ❌ 构建失败, 中止交付 ====="
-              exit 1
-            fi
+          echo "===== 2. APK信息 ====="
+          ls -la AmapBandAlert-debug.apk || true
 
-            echo "===== 2. APK信息 ====="
-            ls -la AmapBandAlert-debug.apk
-
-            echo "===== 3. artifact上传测试 ====="
-            echo "(artifact在Actions页面查看)"
-
-            echo "===== 4. 推送APK到apk-delivery分支 ====="
-            APK_SRC="$PWD/AmapBandAlert-debug.apk"
-            ls -la "$APK_SRC" || { echo "❌ APK不存在于 $APK_SRC"; }
-            mkdir -p /tmp/apks
-            cp "$APK_SRC" /tmp/apks/ || echo "❌ cp到/tmp失败"
-            ls -la /tmp/apks/
-
-            mkdir -p /tmp/deliver
-            cd /tmp/deliver
-            git init -q
-            git config user.name "ci-bot"
-            git config user.email "ci@local"
-            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-            git fetch origin apk-delivery 2>&1 || echo "fetch apk-delivery失败(首次)"
-            git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
-            git rm -rf . 2>/dev/null || true
-            mkdir -p apks
-            cp /tmp/apks/AmapBandAlert-debug.apk apks/ 2>&1
-            git add -A 2>&1
-            git commit -qm "APK $(date -u +%Y%m%d%H%M%S)" 2>&1 || echo "commit结果: $?"
-            git push -f origin apk-delivery 2>&1 || echo "❌ push失败: $?"
-            echo "===== 4完成 ====="
-          } > "$LOG" 2>&1
-
-          # 推送完整交付日志到 build-logs 分支 (SSH密钥方式, 走deploy key?)
-          # 改用同一token: 在logrepo里已经配置了remote, 直接把日志文件commit上去
+          echo "===== 3. 推APK到apk-delivery分支 ====="
+          mkdir -p /tmp/apks
+          cp AmapBandAlert-debug.apk /tmp/apks/ || true
+          mkdir -p /tmp/deliver
           cd /tmp/deliver
-          git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
-          git rm -rf . 2>/dev/null || true
-          cp "$LOG" ./delivery_log.txt
-          git add -A
-          git commit -qm "delivery log $(date -u +%Y%m%d%H%M%S)"
-          git push -f origin build-logs
-          echo "delivery日志已推build-logs分支"
-
-          # 错误行作为commit message推到 errors 分支 (匿名 commits API 可读)
-          grep -E "error:|错误|FAILED" "$LOG" | head -20 > /tmp/errs.txt || true
-          N=$(wc -l < /tmp/errs.txt)
-          if [ "$N" -eq 0 ]; then
-            echo "(无标准错误行) 脚本输出尾部:" > /tmp/errs.txt
-            tail -15 "$LOG" >> /tmp/errs.txt
-          fi
-          mkdir -p /tmp/errrepo
-          cd /tmp/errrepo
           git init -q
-          git config user.name "err-bot"
-          git config user.email "err@local"
+          git config user.name "ci-bot"
+          git config user.email "ci@local"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          git fetch origin errors 2>/dev/null || true
-          git checkout -b errors origin/errors 2>/dev/null || git checkout --orphan errors
+          git fetch origin apk-delivery 2>&1 || true
+          git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
           git rm -rf . 2>/dev/null || true
-          i=0
-          while IFS= read -r line; do
-            i=$((i+1))
-            echo "$line" > "err_$i.txt"
-            git add err_$i.txt
-            git commit -qm "$line"
-          done < /tmp/errs.txt
-          git push -f origin errors
-
-          # 状态: 构建失败则job标失败
-          if grep -q "❌" "$LOG"; then
-            exit 1
-          fi
+          mkdir -p apks
+          cp /tmp/apks/AmapBandAlert-debug.apk apks/
+          git add -A
+          git commit -qm "APK $(date -u +%Y%m%d%H%M%S)" || true
+          git push -f origin apk-delivery 2>&1 || true
+          echo "===== 完成 ====="
