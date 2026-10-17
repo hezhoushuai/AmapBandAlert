@@ -17,17 +17,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
 
       - name: Build Debug APK
         working-directory: android-app
-        run: |
-          gradle wrapper --gradle-version 8.7
-          ./gradlew assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AmapBandAlert-debug
+          name: MotoAlert-debug
           path: android-app/app/build/outputs/apk/debug/*.apk
