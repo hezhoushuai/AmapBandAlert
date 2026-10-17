@@ -13,11 +13,11 @@ rm -rf build_out && mkdir -p build_out/gen build_out/obj build_out/apk
 
 # 1. aapt2 编译链接资源 → 生成 R.java 和资源包
 echo "STEP1: aapt2 compile"
-"$BT/aapt2" compile --dir app/src/main/res -o build_out/res.zip || { echo "FAIL: aapt2 compile"; exit 1; }
+"$BT/aapt2" compile --dir android-app/app/src/main/res -o build_out/res.zip || { echo "FAIL: aapt2 compile"; exit 1; }
 echo "STEP2: aapt2 link"
 "$BT/aapt2" link -o build_out/base.apk \
   -I "$PLATFORM/android.jar" \
-  --manifest app/src/main/AndroidManifest.xml \
+  --manifest android-app/app/src/main/AndroidManifest.xml \
   --java build_out/gen \
   --auto-add-overlay \
   build_out/res.zip || { echo "FAIL: aapt2 link"; exit 1; }
@@ -25,7 +25,7 @@ echo "STEP2: aapt2 link"
 # 2. javac 编译 (需要 androidx? 不用! 我们把代码改成纯android SDK API)
 mkdir -p build_out/classes
 find build_out/gen -name "*.java" > build_out/sources.txt
-find app/src/main/java -name "*.java" >> build_out/sources.txt
+find android-app/app/src/main/java -name "*.java" >> build_out/sources.txt
 echo "STEP3: javac"
 javac --release 11 -classpath "$PLATFORM/android.jar" -d build_out/classes @build_out/sources.txt || { echo "FAIL: javac"; exit 1; }
 
