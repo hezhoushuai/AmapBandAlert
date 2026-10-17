@@ -29,11 +29,8 @@ jobs:
           tail -20 /tmp/build_output.txt
 
           if [ $code -ne 0 ]; then
-            grep -nE "\.java:[0-9]+|error:|FAIL:" /tmp/build_output.txt > /tmp/err_lines.txt || true
-            N=$(wc -l < /tmp/err_lines.txt)
-            if [ "$N" -eq 0 ]; then
-              tail -40 /tmp/build_output.txt > /tmp/err_lines.txt
-            fi
+            # 输出STEP3(javac)之后的所有行, 精准定位javac错误
+            awk '/STEP3/{f=1} f' /tmp/build_output.txt > /tmp/err_lines.txt || true
             while IFS= read -r line; do
               echo "::error::${line:0:280}"
             done < /tmp/err_lines.txt
