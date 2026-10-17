@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -18,38 +20,40 @@ jobs:
           distribution: 'temurin'
 
       - name: Build APK (no gradle)
-        id: build
-        working-directory: ${{ github.workspace }}
         run: |
           set +e
           bash scripts/build_no_gradle.sh > /tmp/build_output.txt 2>&1
           code=$?
           tail -50 /tmp/build_output.txt > /tmp/error_tail.txt
+          echo "===== 脚本退出码: $code ====="
+          tail -20 /tmp/build_output.txt
+
+          mkdir -p /tmp/logrepo
+          cd /tmp/logrepo
+          git init -q
+          git config user.name "ci-bot"
+          git config user.email "ci@local"
+          git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          git fetch origin build-logs apk-delivery 2>/dev/null || true
+
           if [ $code -ne 0 ]; then
-            echo "### ❌ 构建失败" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -iE "error|错误" /tmp/build_output.txt | head -20 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -30 /tmp/build_output.txt >> $GITHUB_STEP_SUMMARY
-            mkdir -p /tmp/logrepo
-            cd /tmp/logrepo
-            git init -q
-            git config user.name "ci-bot"
-            git config user.email "ci@local"
-            git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
-            git fetch origin build-logs || true
             git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
             cp /tmp/error_tail.txt ./latest_error.txt
             cp /tmp/build_output.txt ./full_output.txt
             git add -A
             git commit -qm "build log $(date -u +%Y%m%d%H%M%S)"
             git push -q origin build-logs
+            echo "❌ 构建失败, 日志已推 build-logs 分支" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: AmapBandAlert-debug-apk
-          path: AmapBandAlert-debug.apk
+          # 成功: APK推到 apk-delivery 分支
+          git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
+          git rm -rf . 2>/dev/null || true
+          mkdir -p apks
+          find "$GITHUB_WORKSPACE" -name "AmapBandAlert-debug.apk" -exec cp {} apks/ \;
+          ls -la apks/
+          git add -A
+          git commit -qm "APK $(date -u +%Y%m%d%H%M%S)"
+          git push -q origin apk-delivery
+          echo "✅ APK已推送到 apk-delivery 分支" >> $GITHUB_STEP_SUMMARY
