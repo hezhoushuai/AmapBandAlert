@@ -59,11 +59,14 @@ jobs:
           fi
 
           # 成功: APK推到 apk-delivery 分支
-          ls -la android-app/AmapBandAlert-debug.apk
+          APK_SRC="$GITHUB_WORKSPACE/android-app/AmapBandAlert-debug.apk"
+          ls -la "$APK_SRC"
+          mkdir -p /tmp/apks
+          cp "$APK_SRC" /tmp/apks/
           git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
           git rm -rf . 2>/dev/null || true
           mkdir -p apks
-          cp android-app/AmapBandAlert-debug.apk apks/
+          cp /tmp/apks/AmapBandAlert-debug.apk apks/
           ls -la apks/
           ls -la apks/
           git add -A
