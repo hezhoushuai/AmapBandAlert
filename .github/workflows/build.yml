@@ -51,4 +51,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AmapBandAlert-debug-apk
-          path: AmapBandAlert-debug.apk
+          path: android-app/AmapBandAlert-debug.apk
