@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,11 +24,23 @@ jobs:
         run: |
           set +e
           gradle assembleDebug --no-daemon --stacktrace > /tmp/gradle_output.txt 2>&1
-          EXIT_CODE=$?
-          # 把输出尾部(含错误)写入Step Summary, 页面直接可见
-          tail -100 /tmp/gradle_output.txt > $GITHUB_STEP_SUMMARY
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "### ❌ 编译失败, 错误详情见上方" >> $GITHUB_STEP_SUMMARY
+          code=$?
+          tail -80 /tmp/gradle_output.txt > /tmp/error_tail.txt
+          if [ $code -ne 0 ]; then
+            # 把错误日志推到 build-logs 分支, 匿名可读
+            mkdir -p /tmp/logrepo
+            cd /tmp/logrepo
+            git init -q
+            git config user.name "ci-bot"
+            git config user.email "ci@local"
+            git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+            git fetch origin build-logs || true
+            git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
+            cp /tmp/error_tail.txt ./latest_error.txt
+            cp /tmp/gradle_output.txt ./full_output.txt
+            git add -A
+            git commit -qm "build log $(date -u +%Y%m%d%H%M%S)"
+            git push -q origin build-logs
             exit 1
           fi
 
