@@ -56,7 +56,7 @@ jobs:
           fi
 
           # 成功: APK推到 apk-delivery 分支
-          APK_SRC="$GITHUB_WORKSPACE/android-app/AmapBandAlert-debug.apk"
+          APK_SRC="$GITHUB_WORKSPACE/AmapBandAlert-debug.apk"
           ls -la "$APK_SRC"
           mkdir -p /tmp/apks
           cp "$APK_SRC" /tmp/apks/
