@@ -28,6 +28,12 @@ jobs:
           echo "===== 脚本退出码: $code ====="
           tail -20 /tmp/build_output.txt
 
+          if [ -f /tmp/build_output.txt ]; then
+            grep -iE "error|FAIL|No such|not found|denied" /tmp/build_output.txt | head -15 | while IFS= read -r line; do
+              echo "::error::${line:0:250}"
+            done
+          fi
+
           mkdir -p /tmp/logrepo
           cd /tmp/logrepo
           git init -q
