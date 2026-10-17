@@ -19,7 +19,16 @@ jobs:
 
       - name: Build Debug APK
         working-directory: android-app
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          set +e
+          gradle assembleDebug --no-daemon --stacktrace > /tmp/gradle_output.txt 2>&1
+          EXIT_CODE=$?
+          # 把输出尾部(含错误)写入Step Summary, 页面直接可见
+          tail -100 /tmp/gradle_output.txt > $GITHUB_STEP_SUMMARY
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "### ❌ 编译失败, 错误详情见上方" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
       - name: Upload APK
         if: success()
@@ -27,10 +36,3 @@ jobs:
         with:
           name: AmapBandAlert-debug-apk
           path: android-app/app/build/outputs/apk/debug/*.apk
-
-      - name: Upload build log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: android-app/app/build/outputs/
