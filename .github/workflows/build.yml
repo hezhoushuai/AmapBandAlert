@@ -36,7 +36,7 @@ jobs:
           git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
           git fetch origin build-logs apk-delivery 2>/dev/null || true
 
-          if [ $code -ne 0 ]; then
+          if true; then
             git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
             cp /tmp/error_tail.txt ./latest_error.txt
             cp /tmp/build_output.txt ./full_output.txt
