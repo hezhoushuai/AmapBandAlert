@@ -1,0 +1,77 @@
+===== 1. 构建 =====
++ echo SDK=
+SDK=
++ echo BT=
+BT=
++ echo PLATFORM=
+PLATFORM=
++ SDK=/usr/local/lib/android/sdk
+++ sort -V
+++ tail -1
+++ ls -d /usr/local/lib/android/sdk/build-tools/34.0.0 /usr/local/lib/android/sdk/build-tools/35.0.0 /usr/local/lib/android/sdk/build-tools/35.0.1 /usr/local/lib/android/sdk/build-tools/36.0.0 /usr/local/lib/android/sdk/build-tools/36.1.0 /usr/local/lib/android/sdk/build-tools/37.0.0
++ BT=/usr/local/lib/android/sdk/build-tools/37.0.0
+++ sort -V
+++ tail -1
+++ ls -d /usr/local/lib/android/sdk/platforms/android-34 /usr/local/lib/android/sdk/platforms/android-34-ext10 /usr/local/lib/android/sdk/platforms/android-34-ext11 /usr/local/lib/android/sdk/platforms/android-34-ext12 /usr/local/lib/android/sdk/platforms/android-34-ext8 /usr/local/lib/android/sdk/platforms/android-35 /usr/local/lib/android/sdk/platforms/android-35-ext14 /usr/local/lib/android/sdk/platforms/android-35-ext15 /usr/local/lib/android/sdk/platforms/android-36 /usr/local/lib/android/sdk/platforms/android-36-ext18 /usr/local/lib/android/sdk/platforms/android-36-ext19 /usr/local/lib/android/sdk/platforms/android-36.1 /usr/local/lib/android/sdk/platforms/android-37.0 /usr/local/lib/android/sdk/platforms/android-37.1 /usr/local/lib/android/sdk/platforms/android-37.2 /usr/local/lib/android/sdk/platforms/android-37.2-beta1 /usr/local/lib/android/sdk/platforms/android-37.2-beta2 /usr/local/lib/android/sdk/platforms/android-37.2-beta3
++ PLATFORM=/usr/local/lib/android/sdk/platforms/android-37.2-beta3
++ echo 'build-tools: /usr/local/lib/android/sdk/build-tools/37.0.0'
+build-tools: /usr/local/lib/android/sdk/build-tools/37.0.0
++ echo 'platform: /usr/local/lib/android/sdk/platforms/android-37.2-beta3'
+platform: /usr/local/lib/android/sdk/platforms/android-37.2-beta3
++ rm -rf build_out
++ mkdir -p build_out/gen build_out/obj build_out/apk
++ echo 'STEP1: aapt2 compile'
+STEP1: aapt2 compile
++ /usr/local/lib/android/sdk/build-tools/37.0.0/aapt2 compile --dir android-app/app/src/main/res -o build_out/res.zip
++ echo 'STEP2: aapt2 link'
+STEP2: aapt2 link
++ /usr/local/lib/android/sdk/build-tools/37.0.0/aapt2 link -o build_out/base.apk -I /usr/local/lib/android/sdk/platforms/android-37.2-beta3/android.jar --manifest android-app/app/src/main/AndroidManifest.xml --java build_out/gen --auto-add-overlay build_out/res.zip
++ mkdir -p build_out/classes
++ find build_out/gen -name '*.java'
++ find android-app/app/src/main/java -name '*.java'
++ echo 'STEP3: javac'
+STEP3: javac
++ javac -source 11 -target 11 -classpath /usr/local/lib/android/sdk/platforms/android-37.2-beta3/android.jar -d build_out/classes @build_out/sources.txt
+warning: [options] system modules path not set in conjunction with -source 11
+Note: android-app/app/src/main/java/com/amapbandalert/AlertNotifier.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+1 warning
++ echo 'STEP4: d8'
+STEP4: d8
+++ find build_out/classes -name '*.class'
++ /usr/local/lib/android/sdk/build-tools/37.0.0/d8 --release --lib /usr/local/lib/android/sdk/platforms/android-37.2-beta3/android.jar --output build_out build_out/classes/com/amapbandalert/MonitorService.class 'build_out/classes/com/amapbandalert/MainActivity$1.class' build_out/classes/com/amapbandalert/AlertEngine.class 'build_out/classes/com/amapbandalert/R$color.class' 'build_out/classes/com/amapbandalert/R$id.class' build_out/classes/com/amapbandalert/MainActivity.class build_out/classes/com/amapbandalert/R.class 'build_out/classes/com/amapbandalert/R$layout.class' build_out/classes/com/amapbandalert/WearBridge.class build_out/classes/com/amapbandalert/AlertNotifier.class build_out/classes/com/amapbandalert/AmapBroadcastReceiver.class 'build_out/classes/com/amapbandalert/AlertEngine$Listener.class' 'build_out/classes/com/amapbandalert/R$drawable.class' 'build_out/classes/com/amapbandalert/R$mipmap.class' 'build_out/classes/com/amapbandalert/R$style.class'
++ cd build_out
++ zip -q base.apk classes.dex
++ cd ..
++ /usr/local/lib/android/sdk/build-tools/37.0.0/zipalign -f 4 build_out/base.apk build_out/aligned.apk
++ keytool -genkeypair -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
++ echo 'STEP6: apksigner'
+STEP6: apksigner
++ /usr/local/lib/android/sdk/build-tools/37.0.0/apksigner sign --ks debug.keystore --ks-pass pass:android --out AmapBandAlert-debug.apk build_out/aligned.apk
++ echo ALL_STEPS_PASSED
+ALL_STEPS_PASSED
++ ls -la AmapBandAlert-debug.apk
+-rw-r--r-- 1 runner runner 21352 Oct 17 05:36 AmapBandAlert-debug.apk
++ echo BUILD_OK
+BUILD_OK
+===== 构建退出码: 0 =====
+===== 2. APK信息 =====
+-rw-r--r-- 1 runner runner 21352 Oct 17 05:36 AmapBandAlert-debug.apk
+===== 3. artifact上传测试 =====
+(artifact在Actions页面查看)
+===== 4. 推送APK到apk-delivery分支 =====
+-rw-r--r-- 1 runner runner 21352 Oct 17 05:36 /home/runner/work/AmapBandAlert/AmapBandAlert/AmapBandAlert-debug.apk
+total 32
+drwxr-xr-x  2 runner runner  4096 Oct 17 05:36 .
+drwxrwxrwt 15 root   root    4096 Oct 17 05:36 ..
+-rw-r--r--  1 runner runner 21352 Oct 17 05:36 AmapBandAlert-debug.apk
+fatal: couldn't find remote ref apk-delivery
+fetch apk-delivery失败(首次)
+Switched to a new branch 'apk-delivery'
+remote: 
+remote: Create a pull request for 'apk-delivery' on GitHub by visiting:        
+remote:      https://github.com/hezhoushuai/AmapBandAlert/pull/new/apk-delivery        
+remote: 
+To https://github.com/hezhoushuai/AmapBandAlert.git
+ * [new branch]      apk-delivery -> apk-delivery
+===== 4完成 =====
