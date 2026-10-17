@@ -30,7 +30,7 @@ mkdir -p build_out/classes
 find build_out/gen -name "*.java" > build_out/sources.txt
 find android-app/app/src/main/java -name "*.java" >> build_out/sources.txt
 echo "STEP3: javac"
-javac --release 11 -classpath "$PLATFORM/android.jar" -d build_out/classes @build_out/sources.txt || { echo "FAIL: javac"; exit 1; }
+javac -source 11 -target 11 -classpath "$PLATFORM/android.jar" -d build_out/classes @build_out/sources.txt || { echo "FAIL: javac"; exit 1; }
 
 # 3. d8 转dex
 echo "STEP4: d8"

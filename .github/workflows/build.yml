@@ -29,8 +29,8 @@ jobs:
           tail -20 /tmp/build_output.txt
 
           if [ -f /tmp/build_output.txt ]; then
-            tail -30 /tmp/build_output.txt | while IFS= read -r line; do
-              echo "::error::${line:0:250}"
+            grep -iE "\.java:[0-9]+:|error:|FAIL:" /tmp/build_output.txt | head -15 | while IFS= read -r line; do
+              echo "::error::${line:0:280}"
             done
           fi
 
