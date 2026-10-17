@@ -75,6 +75,31 @@ jobs:
           git push -f origin build-logs
           echo "delivery日志已推build-logs分支"
 
+          # 错误行作为commit message推到 errors 分支 (匿名 commits API 可读)
+          grep -E "error:|错误|FAILED" "$LOG" | head -20 > /tmp/errs.txt || true
+          N=$(wc -l < /tmp/errs.txt)
+          if [ "$N" -eq 0 ]; then
+            echo "(无标准错误行) 脚本输出尾部:" > /tmp/errs.txt
+            tail -15 "$LOG" >> /tmp/errs.txt
+          fi
+          mkdir -p /tmp/errrepo
+          cd /tmp/errrepo
+          git init -q
+          git config user.name "err-bot"
+          git config user.email "err@local"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git fetch origin errors 2>/dev/null || true
+          git checkout -b errors origin/errors 2>/dev/null || git checkout --orphan errors
+          git rm -rf . 2>/dev/null || true
+          i=0
+          while IFS= read -r line; do
+            i=$((i+1))
+            echo "$line" > "err_$i.txt"
+            git add err_$i.txt
+            git commit -qm "$line"
+          done < /tmp/errs.txt
+          git push -f origin errors
+
           # 状态: 构建失败则job标失败
           if grep -q "❌" "$LOG"; then
             exit 1
