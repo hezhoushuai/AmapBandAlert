@@ -1,0 +1,12 @@
+<template>
+  <div class="page">
+    <text class="idle">AmapBandAlert</text>
+    <text class="hint">等待导航...</text>
+  </div>
+</template>
+<style>
+  .page { justify-content: center; align-items: center; background-color: #000; }
+  .idle { color: #FF5722; font-size: 40px; font-weight: bold; }
+  .hint { color: #666; font-size: 28px; margin-top: 16px; }
+</style>
+<script></script>

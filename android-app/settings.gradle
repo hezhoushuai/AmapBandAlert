@@ -1,0 +1,2 @@
+rootProject.name = "AmapBandAlert"
+include ':app'

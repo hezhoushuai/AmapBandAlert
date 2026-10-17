@@ -1,0 +1,60 @@
+<template>
+  <div class="page">
+    <div class="warning-box">
+      <text class="warning-title">⚠️ 限速拍照</text>
+      <text class="warning-dist">{{ dist }}m</text>
+      <text class="warning-limit" if="{{ limit > 0 }}">限速 {{ limit }}</text>
+      <text class="warning-speed" if="{{ speed > 0 }}">当前 {{ speed }}</text>
+    </div>
+  </div>
+</template>
+
+<style>
+  .page { flex-direction: column; justify-content: center; align-items: center; background-color: #000; }
+  .warning-box { justify-content: center; align-items: center; }
+  .warning-title { color: #FF1744; font-size: 48px; font-weight: bold; }
+  .warning-dist { color: #FFFFFF; font-size: 72px; font-weight: bold; margin-top: 20px; }
+  .warning-limit { color: #FFD600; font-size: 40px; margin-top: 12px; }
+  .warning-speed { color: #B0BEC5; font-size: 32px; margin-top: 8px; }
+</style>
+
+<script>
+  import vibrator from '@system.vibrator';
+
+  export default {
+    data: {
+      dist: '--',
+      limit: 0,
+      speed: 0,
+      lastVibrateAt: 0
+    },
+    onInit() {
+      // 接收手机端推送的数据 (WearBridge 通道, P1阶段接通)
+      this.$page.on('message', (msg) => this.handle(msg));
+    },
+    handle(msg) {
+      if (!msg || !msg.t) return;
+      if (msg.t === 'camera') {
+        this.dist = msg.dist;
+        this.limit = msg.limit || 0;
+        this.speed = msg.speed || 0;
+        this.strongVibrate();
+      } else if (msg.t === 'nav_end') {
+        this.dist = '--';
+      }
+    },
+    strongVibrate() {
+      // 三段强震: 400ms-150ms-400ms-150ms-600ms
+      const now = Date.now();
+      if (now - this.lastVibrateAt < 4000) return; // 4s内不重复
+      this.lastVibrateAt = now;
+      try {
+        vibrator.vibrate({ mode: 'long' });
+        setTimeout(() => vibrator.vibrate({ mode: 'long' }), 600);
+        setTimeout(() => vibrator.vibrate({ mode: 'long' }), 1200);
+      } catch (e) {
+        console.error('vibrate fail: ' + e);
+      }
+    }
+  }
+</script>

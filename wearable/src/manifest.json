@@ -1,0 +1,22 @@
+{
+  "package": "com.amapbandalert.wearable",
+  "name": "AmapBandAlert",
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "minPlatformVersion": "1050",
+  "icon": "/common/icon.png",
+  "features": [
+    { "name": "system.device" },
+    { "name": "system.vibrator" },
+    { "name": "system.router" }
+  ],
+  "permissions": [],
+  "config": {},
+  "router": {
+    "entry": "/pages/alert",
+    "pages": {
+      "/pages/alert": { "component": "alert" },
+      "/pages/idle": { "component": "idle" }
+    }
+  }
+}
