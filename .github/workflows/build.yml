@@ -29,8 +29,8 @@ jobs:
           tail -20 /tmp/build_output.txt
 
           if [ $code -ne 0 ]; then
-            # 输出STEP3(javac)之后的所有行, 精准定位javac错误
-            awk '/STEP3/{f=1} f' /tmp/build_output.txt > /tmp/err_lines.txt || true
+            # 失败: 输出全部(前60+后60行)
+            (head -60 /tmp/build_output.txt; echo "...SKIP..."; tail -60 /tmp/build_output.txt) > /tmp/err_lines.txt || true
             while IFS= read -r line; do
               echo "::error::${line:0:280}"
             done < /tmp/err_lines.txt
