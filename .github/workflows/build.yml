@@ -19,25 +19,18 @@ jobs:
 
       - name: Build Debug APK
         working-directory: android-app
-        id: build
-        run: gradle assembleDebug --no-daemon 2>&1 | tee build.log || echo "BUILD_FAILED=1" >> $GITHUB_ENV
-
-      - name: Report errors
-        if: env.BUILD_FAILED == '1'
-        run: grep -A 5 -B 2 -iE "error|FAILED" build.log | head -80 >> $GITHUB_STEP_SUMMARY
-          && tail -60 build.log > error_tail.txt
-          && echo "错误摘要见Summary; 完整尾部:" && cat error_tail.txt
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: android-app/build.log
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: AmapBandAlert-debug
+          name: AmapBandAlert-debug-apk
           path: android-app/app/build/outputs/apk/debug/*.apk
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: android-app/app/build/outputs/
