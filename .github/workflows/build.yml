@@ -19,56 +19,63 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build APK (no gradle)
+      - name: Build and Deliver
         run: |
           set +e
-          bash scripts/build_no_gradle.sh > /tmp/build_output.txt 2>&1
-          code=$?
-          tail -50 /tmp/build_output.txt > /tmp/error_tail.txt
-          echo "===== 脚本退出码: $code ====="
-          tail -20 /tmp/build_output.txt
+          LOG=/tmp/delivery_log.txt
+          {
+            echo "===== 1. 构建 ====="
+            bash scripts/build_no_gradle.sh 2>&1
+            BUILD_CODE=$?
+            echo "===== 构建退出码: $BUILD_CODE ====="
 
-          if [ $code -ne 0 ]; then
-            # 失败: 输出全部(前60+后60行)
-            (head -60 /tmp/build_output.txt; echo "...SKIP..."; tail -60 /tmp/build_output.txt) > /tmp/err_lines.txt || true
-            while IFS= read -r line; do
-              echo "::error::${line:0:280}"
-            done < /tmp/err_lines.txt
-          fi
+            if [ $BUILD_CODE -ne 0 ]; then
+              echo "===== ❌ 构建失败, 中止交付 ====="
+              exit 1
+            fi
 
-          mkdir -p /tmp/logrepo
-          cd /tmp/logrepo
-          git init -q
-          git config user.name "ci-bot"
-          git config user.email "ci@local"
-          git remote add origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
-          git fetch origin build-logs apk-delivery 2>/dev/null || true
+            echo "===== 2. APK信息 ====="
+            ls -la AmapBandAlert-debug.apk
 
-          if true; then
-            git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
-            cp /tmp/error_tail.txt ./latest_error.txt
-            cp /tmp/build_output.txt ./full_output.txt
-            git add -A
-            git commit -qm "build log $(date -u +%Y%m%d%H%M%S)"
-            git push -qf origin build-logs
-            echo "❌ 构建失败, 日志已推 build-logs 分支" >> $GITHUB_STEP_SUMMARY
+            echo "===== 3. artifact上传测试 ====="
+            echo "(artifact在Actions页面查看)"
+
+            echo "===== 4. 推送APK到apk-delivery分支 ====="
+            APK_SRC="$PWD/AmapBandAlert-debug.apk"
+            ls -la "$APK_SRC" || { echo "❌ APK不存在于 $APK_SRC"; }
+            mkdir -p /tmp/apks
+            cp "$APK_SRC" /tmp/apks/ || echo "❌ cp到/tmp失败"
+            ls -la /tmp/apks/
+
+            mkdir -p /tmp/deliver
+            cd /tmp/deliver
+            git init -q
+            git config user.name "ci-bot"
+            git config user.email "ci@local"
+            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+            git fetch origin apk-delivery 2>&1 || echo "fetch apk-delivery失败(首次)"
+            git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
+            git rm -rf . 2>/dev/null || true
+            mkdir -p apks
+            cp /tmp/apks/AmapBandAlert-debug.apk apks/ 2>&1
+            git add -A 2>&1
+            git commit -qm "APK $(date -u +%Y%m%d%H%M%S)" 2>&1 || echo "commit结果: $?"
+            git push -f origin apk-delivery 2>&1 || echo "❌ push失败: $?"
+            echo "===== 4完成 ====="
+          } > "$LOG" 2>&1
+
+          # 推送完整交付日志到 build-logs 分支 (SSH密钥方式, 走deploy key?)
+          # 改用同一token: 在logrepo里已经配置了remote, 直接把日志文件commit上去
+          cd /tmp/deliver
+          git checkout -b build-logs origin/build-logs 2>/dev/null || git checkout --orphan build-logs
+          git rm -rf . 2>/dev/null || true
+          cp "$LOG" ./delivery_log.txt
+          git add -A
+          git commit -qm "delivery log $(date -u +%Y%m%d%H%M%S)"
+          git push -f origin build-logs
+          echo "delivery日志已推build-logs分支"
+
+          # 状态: 构建失败则job标失败
+          if grep -q "❌" "$LOG"; then
             exit 1
           fi
-
-          # 成功: APK推到 apk-delivery 分支
-          APK_SRC="$GITHUB_WORKSPACE/AmapBandAlert-debug.apk"
-          ls -la "$APK_SRC"
-          mkdir -p /tmp/apks
-          cp "$APK_SRC" /tmp/apks/
-          git checkout -b apk-delivery origin/apk-delivery 2>/dev/null || git checkout --orphan apk-delivery
-          git rm -rf . 2>/dev/null || true
-          mkdir -p apks
-          cp /tmp/apks/AmapBandAlert-debug.apk apks/
-          ls -la apks/
-          ls -la apks/
-          git add -A
-          git commit -qm "APK $(date -u +%Y%m%d%H%M%S)"
-          git push -f origin apk-delivery 2>/tmp/push_err.txt || true
-          echo "--- push输出 ---" >> $GITHUB_STEP_SUMMARY
-          cat /tmp/push_err.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
-          echo "✅ APK已推送到 apk-delivery 分支" >> $GITHUB_STEP_SUMMARY
