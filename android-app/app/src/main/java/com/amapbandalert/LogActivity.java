@@ -10,7 +10,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class LogActivity extends Activity implements AlertLogger.Listener {
+public class LogActivity extends Activity {
 
     private TextView logView;
     private ScrollView scroll;
