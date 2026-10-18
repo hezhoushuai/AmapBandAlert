@@ -1,67 +1,278 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" android:layout_width="match_parent"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212" android:padding="20dp">
+    android:fillViewport="true"
+    android:background="#0E1116">
 
-    <!-- 标题 -->
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="AmapBandAlert" android:textSize="26sp" android:textStyle="bold"
-        android:textColor="#FFFFFF"/>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="高德导航 · 限速拍照 · 手环震动提醒"
-        android:textSize="13sp" android:textColor="#888888"
-        android:paddingBottom="16dp"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <!-- 状态卡 -->
-    <LinearLayout android:orientation="vertical" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:background="#1E1E1E"
-        android:padding="16dp">
-        <TextView android:id="@+id/status_card" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="● 待机"
-            android:textSize="18sp" android:textColor="#4CAF50" android:textStyle="bold"/>
-        <TextView android:id="@+id/last_alert" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="最近预警: 无"
-            android:textSize="13sp" android:textColor="#999999" android:paddingTop="6dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AmapBandAlert"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="高德导航 → 小米手环 9 Pro 场景提醒"
+            android:textColor="#8B98A9"
+            android:textSize="13sp"
+            android:paddingTop="2dp"
+            android:paddingBottom="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#171C24"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/status_card"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="● 未启动"
+                android:textColor="#FFB74D"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/state_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="等待高德导航…"
+                android:textColor="#E6EDF5"
+                android:textSize="15sp"
+                android:paddingTop="8dp" />
+
+            <TextView
+                android:id="@+id/source_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="尚未收到高德数据"
+                android:textColor="#8B98A9"
+                android:textSize="12sp"
+                android:paddingTop="5dp" />
+
+            <TextView
+                android:id="@+id/raw_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="（原始通知为空）"
+                android:textColor="#66717F"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:maxLines="6"
+                android:ellipsize="end"
+                android:paddingTop="8dp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_start"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:text="启动监听"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:backgroundTint="#2E7D32" />
+
+        <Button
+            android:id="@+id/btn_test"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="测试手环通知（先验证转发）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <Button
+            android:id="@+id/btn_test_turn"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="模拟一次左转提醒"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <Button
+            android:id="@+id/btn_scan"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="立即读取高德通知（诊断）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <Button
+            android:id="@+id/btn_log"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="运行日志"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="权限"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="24dp"
+            android:paddingBottom="4dp" />
+
+        <Button
+            android:id="@+id/btn_listener"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="通知使用权：去开启（必需）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#B26A00" />
+
+        <Button
+            android:id="@+id/btn_notif_perm"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="通知权限：去允许（必需）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#B26A00" />
+
+        <Button
+            android:id="@+id/btn_battery"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="电池优化：去设置（骑行保活）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提醒场景"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="24dp"
+            android:paddingBottom="4dp" />
+
+        <TextView
+            android:id="@+id/label_distance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="转向提醒距离：200 米"
+            android:textColor="#C7D0DB"
+            android:textSize="14sp" />
+
+        <SeekBar
+            android:id="@+id/bar_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Switch
+            android:id="@+id/toggle_turn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp"
+            android:paddingBottom="6dp"
+            android:text="转向提醒（左转 / 右转 / 掉头 / 环岛）"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_near"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="临近 50 米再补一次提醒"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_arrive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="到达 / 导航结束提醒"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_start"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="导航开始时提醒"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_keyword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="关键词提醒（拥堵 / 事故 / 拍照，实验性）"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_camera"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="电子眼提醒（仅高德车机版广播）"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/toggle_speed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="超速提醒（仅高德车机版广播）"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="重要：手机版高德不发送车机版广播，本应用通过“通知使用权”读取高德导航通知。请先在小米运动健康中开启本应用的通知转发，再用上面的测试按钮确认手环会震动。"
+            android:textColor="#66717F"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="12dp" />
     </LinearLayout>
-
-    <!-- 操作按钮 -->
-    <Button android:id="@+id/btn_start" android:layout_width="match_parent"
-        android:layout_height="52dp" android:layout_marginTop="16dp"
-        android:text="启动监听" android:textSize="16sp"
-        android:background="#2E7D32" android:textColor="#FFFFFF"/>
-    <Button android:id="@+id/btn_test" android:layout_width="match_parent"
-        android:layout_height="48dp" android:layout_marginTop="10dp"
-        android:text="发送测试通知(验证手环链路)" android:textSize="14sp"
-        android:background="#37474F" android:textColor="#FFFFFF"/>
-    <Button android:id="@+id/btn_log" android:layout_width="match_parent"
-        android:layout_height="48dp" android:layout_marginTop="10dp"
-        android:text="运行日志" android:textSize="14sp"
-        android:background="#37474F" android:textColor="#FFFFFF"/>
-
-    <!-- 设置 -->
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="设置" android:textSize="16sp" android:textColor="#FFFFFF"
-        android:textStyle="bold" android:paddingTop="24dp" android:paddingBottom="8dp"/>
-
-    <TextView android:id="@+id/label_dist" android:layout_width="wrap_content"
-        android:layout_height="wrap_content" android:text="电子眼预警距离: 300m"
-        android:textSize="14sp" android:textColor="#CCCCCC"/>
-    <SeekBar android:id="@+id/bar_dist" android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
-
-    <ToggleButton android:id="@+id/toggle_camera" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textOn="电子眼预警: 开"
-        android:textOff="电子眼预警: 关" android:checked="true"
-        android:layout_marginTop="8dp"/>
-    <ToggleButton android:id="@+id/toggle_speed" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textOn="超速提醒: 开"
-        android:textOff="超速提醒: 关" android:checked="true"
-        android:layout_marginTop="8dp"/>
-
-    <!-- 说明 -->
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="需要配合小米运动健康的通知转发使用。高德地图的模拟导航同样会触发预警, 可用于在家测试。"
-        android:textSize="12sp" android:textColor="#666666"
-        android:paddingTop="20dp"/>
-</LinearLayout>
+</ScrollView>

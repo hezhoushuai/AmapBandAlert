@@ -19,6 +19,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Parser regression tests
+        run: bash scripts/test_parser.sh
+
       - name: Build and Deliver (verbose)
         run: |
           set +e

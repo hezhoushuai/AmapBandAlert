@@ -43,12 +43,17 @@ cd build_out && zip -q base.apk classes.dex && cd ..
 # 5. zipalign
 "$BT/zipalign" -f 4 build_out/base.apk build_out/aligned.apk
 
-# 6. 签名 (debug keystore, CI上临时生成)
-keytool -genkeypair -keystore debug.keystore -alias androiddebugkey \
-  -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" \
-  -keyalg RSA -keysize 2048 -validity 10000 2>/dev/null
+# 6. 签名 (固定 debug keystore, 保证后续版本可覆盖安装)
+KS=android-app/keystore/debug.keystore
+if [ ! -f "$KS" ]; then
+  mkdir -p "$(dirname "$KS")"
+  keytool -genkeypair -keystore "$KS" -alias amapbandalert \
+    -storepass android -keypass android -dname "CN=AmapBandAlert Debug,O=AmapBandAlert,C=CN" \
+    -keyalg RSA -keysize 2048 -validity 10000 2>/dev/null
+fi
 echo "STEP6: apksigner"
-"$BT/apksigner" sign --ks debug.keystore --ks-pass pass:android \
+"$BT/apksigner" sign --ks "$KS" --ks-key-alias amapbandalert \
+  --ks-pass pass:android --key-pass pass:android \
   --out AmapBandAlert-debug.apk build_out/aligned.apk || { echo "FAIL: apksigner"; exit 1; }
 echo "ALL_STEPS_PASSED"
 

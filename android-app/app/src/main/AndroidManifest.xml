@@ -1,42 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.amapbandalert">
+    package="com.amapbandalert"
+    android:versionCode="3"
+    android:versionName="0.3.0">
 
-    <!-- 发通知到通知栏(小米运动健康转发到手环震动) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- 前台服务保活, 防止骑行中被系统杀掉 -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
-    <!-- 手机本地震动(备用提醒通道) -->
-    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- 发通知到通知栏，由小米运动健康转发到手环 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 前台服务保活，防止骑行中被系统杀掉 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- 手机本地震动（通知通道之外的备用提醒） -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 开机/更新后恢复监听 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 引导用户把应用加入电池优化白名单 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <queries>
+        <package android:name="com.autonavi.minimap" />
+        <package android:name="com.autonavi.amapauto" />
+        <package android:name="com.mi.health" />
+        <package android:name="com.xiaomi.wearable" />
+    </queries>
 
     <application
         android:label="AmapBandAlert"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:theme="@style/Theme.AmapBandAlert">
 
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- 日志查看页 -->
-        <activity android:name=".LogActivity" android:exported="false"
-            android:label="运行日志"/>
+        <activity
+            android:name=".LogActivity"
+            android:exported="false"
+            android:label="运行日志" />
 
-        <service android:name=".MonitorService"
+        <service
+            android:name=".MonitorService"
             android:foregroundServiceType="specialUse"
             android:exported="false">
-            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="listening_amap_navigation_broadcast"/>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="listening_amap_navigation" />
         </service>
 
-        <receiver android:name=".AmapBroadcastReceiver"
+        <!-- 读取高德导航通知：需要用户在系统设置中授予“通知使用权” -->
+        <service
+            android:name=".NavigationNotificationListener"
+            android:label="AmapBandAlert 读取高德导航"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>
-                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND"/>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- 高德车机版/AmapAuto 兼容通道；手机版高德通常不发这个广播 -->
+        <receiver
+            android:name=".AmapBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="AUTONAVI_STANDARD_BROADCAST_SEND" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
     </application>

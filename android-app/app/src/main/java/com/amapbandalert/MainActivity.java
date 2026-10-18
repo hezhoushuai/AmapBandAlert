@@ -1,90 +1,331 @@
 package com.amapbandalert;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.widget.Button;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
-public class MainActivity extends Activity implements AlertEngine.Listener {
+import java.util.Locale;
+
+public class MainActivity extends Activity {
+
+    private static final int[] DISTANCES = {100, 150, 200, 300, 500};
+    private static final int REQ_NOTIFICATIONS = 101;
+
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private final Runnable tick = this::refreshUi;
 
     private TextView statusCard;
-    private TextView lastAlertText;
+    private TextView stateText;
+    private TextView sourceText;
+    private TextView rawText;
+    private TextView labelDistance;
+    private SeekBar barDistance;
+    private Button btnStart;
+    private Button btnListener;
+    private Button btnNotifPerm;
+    private Button btnBattery;
+
+    private Switch toggleTurn;
+    private Switch toggleNear;
+    private Switch toggleArrive;
+    private Switch toggleStart;
+    private Switch toggleKeyword;
+    private Switch toggleCamera;
+    private Switch toggleSpeed;
+
+    private boolean updatingSwitches;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AlertNotifier.ensureChannels(this);
+        AlertEngine.get().init(this);
         setContentView(R.layout.activity_main);
 
-        AlertNotifier.ensureChannels(this);
-        AlertEngine.get().setListener(this);
-
         statusCard = findViewById(R.id.status_card);
-        lastAlertText = findViewById(R.id.last_alert);
-        Button startBtn = findViewById(R.id.btn_start);
-        Button testBtn = findViewById(R.id.btn_test);
-        Button logBtn = findViewById(R.id.btn_log);
-        SeekBar distBar = findViewById(R.id.bar_dist);
-        TextView distLabel = findViewById(R.id.label_dist);
-        ToggleButton cameraToggle = findViewById(R.id.toggle_camera);
-        ToggleButton speedToggle = findViewById(R.id.toggle_speed);
+        stateText = findViewById(R.id.state_text);
+        sourceText = findViewById(R.id.source_text);
+        rawText = findViewById(R.id.raw_text);
+        labelDistance = findViewById(R.id.label_distance);
+        barDistance = findViewById(R.id.bar_distance);
+        btnStart = findViewById(R.id.btn_start);
+        btnListener = findViewById(R.id.btn_listener);
+        btnNotifPerm = findViewById(R.id.btn_notif_perm);
+        btnBattery = findViewById(R.id.btn_battery);
 
-        startBtn.setOnClickListener(v -> {
-            Intent i = new Intent(this, MonitorService.class);
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(i);
-            else startService(i);
-            statusCard.setText("● 监听中");
-            Toast.makeText(this, "监听已启动", Toast.LENGTH_SHORT).show();
+        toggleTurn = findViewById(R.id.toggle_turn);
+        toggleNear = findViewById(R.id.toggle_near);
+        toggleArrive = findViewById(R.id.toggle_arrive);
+        toggleStart = findViewById(R.id.toggle_start);
+        toggleKeyword = findViewById(R.id.toggle_keyword);
+        toggleCamera = findViewById(R.id.toggle_camera);
+        toggleSpeed = findViewById(R.id.toggle_speed);
+
+        wire();
+        syncSwitches();
+        refreshUi();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        AlertEngine.get().setUiListener(this::refreshUi);
+        ui.removeCallbacks(tick);
+        ui.post(tick);
+        Prefs prefs = Prefs.get(this);
+        if (prefs.enabled() && !MonitorService.isRunning()) {
+            try {
+                MonitorService.start(this);
+            } catch (RuntimeException e) {
+                AlertLogger.log(AlertLogger.Tag.ERROR, "恢复前台服务失败: " + e.getMessage());
+            }
+        }
+        refreshUi();
+    }
+
+    @Override
+    protected void onPause() {
+        AlertEngine.get().setUiListener(null);
+        ui.removeCallbacks(tick);
+        super.onPause();
+    }
+
+    private void wire() {
+        btnStart.setOnClickListener(v -> toggleMonitoring());
+        findViewById(R.id.btn_test).setOnClickListener(v -> {
+            if (!hasPostNotifications()) {
+                requestNotifications();
+                Toast.makeText(this, "请先允许通知，再测试手环链路", Toast.LENGTH_LONG).show();
+                return;
+            }
+            AlertEngine.get().fireTestNotification();
+            Toast.makeText(this, "已发送测试通知", Toast.LENGTH_SHORT).show();
         });
-
-        testBtn.setOnClickListener(v -> AlertEngine.get().fireTestAlert());
-
-        logBtn.setOnClickListener(v ->
+        findViewById(R.id.btn_test_turn).setOnClickListener(v -> {
+            AlertEngine.get().fireTestTurn();
+            Toast.makeText(this, "已模拟一次左转提醒", Toast.LENGTH_SHORT).show();
+        });
+        findViewById(R.id.btn_scan).setOnClickListener(v -> {
+            NavigationNotificationListener.dumpActive();
+            Toast.makeText(this, "已把高德通知原文写入运行日志", Toast.LENGTH_SHORT).show();
+        });
+        findViewById(R.id.btn_log).setOnClickListener(v ->
                 startActivity(new Intent(this, LogActivity.class)));
 
-        int[] dists = {100, 200, 300, 500};
-        distBar.setMax(4);
-        distBar.setProgress(2);
-        distBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar sb, int p, boolean b) {
-                distLabel.setText("电子眼预警距离: " + dists[p] + "m");
-                AlertEngine.get().setCameraAlertDistance(dists[p]);
+        btnListener.setOnClickListener(v -> openNotificationAccess());
+        btnNotifPerm.setOnClickListener(v -> requestNotifications());
+        btnBattery.setOnClickListener(v -> requestIgnoreBattery());
+
+        barDistance.setMax(DISTANCES.length - 1);
+        int index = indexOfDistance(Prefs.get(this).turnDistance());
+        barDistance.setProgress(index, false);
+        updateDistanceLabel(DISTANCES[index]);
+        barDistance.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int meters = DISTANCES[Math.max(0, Math.min(DISTANCES.length - 1, progress))];
+                updateDistanceLabel(meters);
+                if (fromUser) Prefs.get(MainActivity.this).setTurnDistance(meters);
             }
-            @Override public void onStartTrackingTouch(SeekBar sb) {}
-            @Override public void onStopTrackingTouch(SeekBar sb) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        cameraToggle.setOnCheckedChangeListener((b, on) ->
-                AlertEngine.get().setCameraEnabled(on));
-        speedToggle.setOnCheckedChangeListener((b, on) ->
-                AlertEngine.get().setOverspeedEnabled(on));
-
-        updateStatus("待机 · 点启动开始监听");
+        toggleTurn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setTurnEnabled(isChecked);
+        });
+        toggleNear.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setNearEnabled(isChecked);
+        });
+        toggleArrive.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setArriveEnabled(isChecked);
+        });
+        toggleStart.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setStartEnabled(isChecked);
+        });
+        toggleKeyword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setKeywordEnabled(isChecked);
+        });
+        toggleCamera.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setCameraEnabled(isChecked);
+        });
+        toggleSpeed.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) Prefs.get(this).setOverspeedEnabled(isChecked);
+        });
     }
 
-    private void updateStatus(String s) {
-        statusCard.setText("● " + s);
+    private void toggleMonitoring() {
+        Prefs prefs = Prefs.get(this);
+        if (prefs.enabled() || MonitorService.isRunning()) {
+            prefs.setEnabled(false);
+            AlertEngine.get().pause();
+            MonitorService.stop(this);
+            AlertLogger.log(AlertLogger.Tag.INFO, "用户停止监听");
+        } else {
+            if (!hasPostNotifications()) requestNotifications();
+            prefs.setEnabled(true);
+            try {
+                MonitorService.start(this);
+                AlertLogger.log(AlertLogger.Tag.INFO, "用户启动监听");
+            } catch (RuntimeException e) {
+                AlertLogger.log(AlertLogger.Tag.ERROR, "启动前台服务失败: " + e.getMessage());
+                Toast.makeText(this, "启动失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
+                prefs.setEnabled(false);
+            }
+            if (!hasNotificationAccess()) {
+                Toast.makeText(this, "还差一步：请授予通知使用权，才能读取高德导航", Toast.LENGTH_LONG).show();
+                openNotificationAccess();
+            }
+        }
+        refreshUi();
+    }
+
+    private void syncSwitches() {
+        Prefs p = Prefs.get(this);
+        updatingSwitches = true;
+        toggleTurn.setChecked(p.turnEnabled());
+        toggleNear.setChecked(p.nearEnabled());
+        toggleArrive.setChecked(p.arriveEnabled());
+        toggleStart.setChecked(p.startEnabled());
+        toggleKeyword.setChecked(p.keywordEnabled());
+        toggleCamera.setChecked(p.cameraEnabled());
+        toggleSpeed.setChecked(p.overspeedEnabled());
+        updatingSwitches = false;
+    }
+
+    private void refreshUi() {
+        boolean access = hasNotificationAccess();
+        boolean post = hasPostNotifications();
+        boolean battery = ignoresBattery();
+        boolean running = MonitorService.isRunning();
+        boolean enabled = Prefs.get(this).enabled();
+
+        statusCard.setText(running ? "● 监听中" : (enabled ? "● 服务未运行" : "● 未启动"));
+        statusCard.setTextColor(Color.parseColor(running ? "#4CAF50" : "#FFB74D"));
+        stateText.setText(AlertEngine.get().statusLine());
+        sourceText.setText(AlertEngine.get().sourceLine() + "\n" + AlertEngine.get().detailLine());
+        rawText.setText(AlertEngine.get().rawLine());
+
+        btnStart.setText(enabled ? "停止监听" : "启动监听");
+        btnStart.setBackgroundTintList(ColorStateList.valueOf(
+                Color.parseColor(enabled ? "#B3261E" : "#2E7D32")));
+
+        btnListener.setText(access ? "通知使用权：已开启" : "通知使用权：去开启（必需）");
+        btnListener.setBackgroundTintList(ColorStateList.valueOf(
+                Color.parseColor(access ? "#2E7D32" : "#B26A00")));
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            btnNotifPerm.setText(post ? "通知权限：已允许" : "通知权限：去允许（必需）");
+            btnNotifPerm.setBackgroundTintList(ColorStateList.valueOf(
+                    Color.parseColor(post ? "#2E7D32" : "#B26A00")));
+        } else {
+            btnNotifPerm.setText("通知权限：系统默认允许");
+            btnNotifPerm.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#37474F")));
+        }
+
+        btnBattery.setText(battery ? "电池优化：已忽略（推荐）" : "电池优化：去设置（骑行保活）");
+        btnBattery.setBackgroundTintList(ColorStateList.valueOf(
+                Color.parseColor(battery ? "#2E7D32" : "#37474F")));
+
+        syncSwitches();
+        ui.removeCallbacks(tick);
+        ui.postDelayed(tick, 1000);
+    }
+
+    private void updateDistanceLabel(int meters) {
+        labelDistance.setText(String.format(Locale.CHINA, "转向提醒距离：%d 米", meters));
+    }
+
+    private int indexOfDistance(int value) {
+        int best = 2;
+        int diff = Integer.MAX_VALUE;
+        for (int i = 0; i < DISTANCES.length; i++) {
+            int d = Math.abs(DISTANCES[i] - value);
+            if (d < diff) {
+                diff = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    private boolean hasNotificationAccess() {
+        try {
+            String flat = Settings.Secure.getString(getContentResolver(),
+                    "enabled_notification_listeners");
+            return flat != null && flat.contains(getPackageName());
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private boolean hasPostNotifications() {
+        if (Build.VERSION.SDK_INT < 33) return true;
+        return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestNotifications() {
+        if (Build.VERSION.SDK_INT >= 33 && !hasPostNotifications()) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
+        }
+    }
+
+    private boolean ignoresBattery() {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        PowerManager pm = getSystemService(PowerManager.class);
+        return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    private void requestIgnoreBattery() {
+        if (Build.VERSION.SDK_INT < 23 || ignoresBattery()) return;
+        try {
+            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+        } catch (RuntimeException e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (RuntimeException ignored) {
+                Toast.makeText(this, "请在系统设置中允许后台运行", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private void openNotificationAccess() {
+        try {
+            startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+        } catch (RuntimeException e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS));
+            } catch (RuntimeException ignored) {
+                Toast.makeText(this, "请到系统设置 → 通知 → 通知使用权中开启", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
-    public void onCameraAlert(int distM, int limitSpeed, int curSpeed) {
-        runOnUiThread(() -> {
-            AlertNotifier.notifyCamera(this, distM, limitSpeed, curSpeed);
-            lastAlertText.setText("最近预警: 限速拍照 " + distM + "m" +
-                    (limitSpeed > 0 ? " · 限" + limitSpeed : ""));
-            updateStatus("⚠️ 已触发电子眼预警");
-        });
-    }
-
-    @Override
-    public void onOverspeed(int curSpeed, int limitSpeed) {
-        runOnUiThread(() -> {
-            AlertNotifier.notifyOverspeed(this, curSpeed, limitSpeed);
-            lastAlertText.setText("最近预警: 超速 " + curSpeed + "/" + limitSpeed);
-        });
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_NOTIFICATIONS) {
+            refreshUi();
+            if (!hasPostNotifications()) {
+                Toast.makeText(this, "没有通知权限，手环收不到提醒", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }

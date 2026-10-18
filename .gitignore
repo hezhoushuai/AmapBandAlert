@@ -1,0 +1,21 @@
+# build outputs
+build_out/
+build/
+.gradle/
+*.apk
+*.aab
+*.rpk
+
+# local config / signing (debug keystore is intentionally committed)
+local.properties
+/debug.keystore
+!android-app/keystore/debug.keystore
+signing/
+outputs/
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+
+*.idsig
