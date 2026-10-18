@@ -176,7 +176,11 @@ public class MainActivity extends Activity {
             MonitorService.stop(this);
             AlertLogger.log(AlertLogger.Tag.INFO, "用户停止监听");
         } else {
-            if (!hasPostNotifications()) requestNotifications();
+            if (!hasPostNotifications()) {
+                requestNotifications();
+                Toast.makeText(this, "请先允许通知，再点一次“启动监听”", Toast.LENGTH_LONG).show();
+                return;
+            }
             prefs.setEnabled(true);
             try {
                 MonitorService.start(this);
