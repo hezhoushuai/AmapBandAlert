@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 import android.os.Build;
 
 import java.util.Locale;
@@ -64,7 +65,8 @@ public final class AlertNotifier {
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setShowWhen(false)
                 .addAction(new Notification.Action.Builder(
-                        null, "停止监听", stopPi).build());
+                        Icon.createWithResource(context, R.drawable.ic_stat_nav),
+                        "停止监听", stopPi).build());
         if (Build.VERSION.SDK_INT >= 31) {
             b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE);
         }

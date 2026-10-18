@@ -34,6 +34,11 @@ public final class MonitorService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        if (!Prefs.get(this).enabled()) {
+            // 系统重启服务但用户已关闭监听，不要留下僵尸前台通知。
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         AlertNotifier.postStatus(this, "AmapBandAlert 监听中", "等待高德导航…");
         return START_STICKY;
     }

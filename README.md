@@ -51,6 +51,8 @@ AmapBandAlert 通知监听
 
 ## 安装与配置
 
+要求：Android 8.0+ 手机、已安装高德地图和小米运动健康。
+
 1. 安装 `AmapBandAlert-debug.apk`。
 2. 打开 App，依次完成：
    - **通知权限**：允许通知（Android 13+）。
@@ -97,7 +99,9 @@ bash scripts/build_no_gradle.sh
 # 输出 AmapBandAlert-debug.apk
 ```
 
-也可以使用 GitHub Actions：推送到 `main` 后，工作流会构建并把 APK 推到 `apk-delivery` 分支。
+也可以使用 GitHub Actions：推送到 `main` 后，工作流会先跑解析器测试，再构建并把 APK 推到 `apk-delivery` 分支。
+
+签名使用仓库内固定的 debug keystore（`android-app/keystore/debug.keystore`，密码 `android`），这样后续版本可以覆盖安装，也方便 P1 手环 RPK 使用同一套证书。它只适合个人测试，不要用于正式发布。
 
 ## 路线图
 
