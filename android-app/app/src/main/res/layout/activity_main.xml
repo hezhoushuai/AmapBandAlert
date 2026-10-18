@@ -22,7 +22,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="高德导航 → 小米手环 9 Pro 场景提醒"
+            android:text="v0.3.0 · 高德导航 → 小米手环 9 Pro 场景提醒"
             android:textColor="#8B98A9"
             android:textSize="13sp"
             android:paddingTop="2dp"
