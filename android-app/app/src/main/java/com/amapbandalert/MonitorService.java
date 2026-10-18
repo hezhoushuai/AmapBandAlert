@@ -6,7 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 
 /** 前台服务：保持进程存活，并持续获取 GPS 车速。 */
 public final class MonitorService extends Service {
@@ -16,6 +18,13 @@ public final class MonitorService extends Service {
     private static volatile MonitorService instance;
 
     private LocationSpeedMonitor speedMonitor;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshTick = new Runnable() {
+        @Override public void run() {
+            AlertEngine.get().refreshOverspeed();
+            handler.postDelayed(this, 5000);
+        }
+    };
 
     public static boolean isRunning() { return running; }
 
@@ -36,6 +45,8 @@ public final class MonitorService extends Service {
         } else {
             AlertLogger.log(AlertLogger.Tag.INFO, "未授权定位，GPS 车速不可用；可继续使用车机广播");
         }
+        handler.removeCallbacks(refreshTick);
+        handler.postDelayed(refreshTick, 5000);
     }
 
     private void startAsForeground(Notification notification) {
@@ -102,6 +113,7 @@ public final class MonitorService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        handler.removeCallbacks(refreshTick);
         if (speedMonitor != null) {
             speedMonitor.stop();
             speedMonitor = null;
