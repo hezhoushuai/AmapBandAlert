@@ -34,7 +34,7 @@ javac -source 11 -target 11 -classpath "$PLATFORM/android.jar" -d build_out/clas
 
 # 3. d8 转dex
 echo "STEP4: d8"
-"$BT/d8" --release --lib "$PLATFORM/android.jar" \
+"$BT/d8" --release --min-api 26 --lib "$PLATFORM/android.jar" \
   --output build_out $(find build_out/classes -name '*.class') || { echo "FAIL: d8"; exit 1; }
 
 # 4. 打包: 把classes.dex加入apk
