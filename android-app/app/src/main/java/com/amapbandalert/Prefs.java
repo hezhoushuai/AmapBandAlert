@@ -68,7 +68,7 @@ public final class Prefs {
     public boolean fixedLimitEnabled() { return sp.getBoolean("fixed_limit_enabled", false); }
     public void setFixedLimitEnabled(boolean v) { sp.edit().putBoolean("fixed_limit_enabled", v).apply(); }
 
-    /** 固定限速阈值 km/h（40–120）。 */
+    /** 固定限速阈值 km/h（20–120）。 */
     public int fixedLimitKmh() { return sp.getInt("fixed_limit_kmh", 60); }
     public void setFixedLimitKmh(int v) { sp.edit().putInt("fixed_limit_kmh", v).apply(); }
 

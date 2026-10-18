@@ -24,7 +24,7 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private static final int[] DISTANCES = {100, 150, 200, 300, 500};
-    private static final int[] FIXED_LIMITS = {40, 50, 60, 70, 80, 90, 100, 110, 120};
+    private static final int[] FIXED_LIMITS = {20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120};
     private static final int REQ_NOTIFICATIONS = 101;
     private static final int REQ_LOCATION = 102;
 
