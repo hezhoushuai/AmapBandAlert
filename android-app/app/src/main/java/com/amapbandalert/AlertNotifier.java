@@ -33,6 +33,8 @@ public final class AlertNotifier {
         NotificationChannel alert = new NotificationChannel(
                 CHANNEL_ALERT, "导航场景提醒", NotificationManager.IMPORTANCE_HIGH);
         alert.setDescription("转向、到达、电子眼、超速等提醒，转发到手环震动");
+        // 手机端默认静音，避免每个路口都响；需要声音可在系统通知设置里打开。
+        alert.setSound(null, null);
         alert.enableVibration(true);
         alert.setVibrationPattern(new long[]{0, 400, 150, 400, 150, 700});
         alert.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
