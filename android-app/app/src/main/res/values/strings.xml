@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_desc">读取高德地图导航界面的限速文字，用于超速提醒。只监听高德，不读取其它应用。</string>
+</resources>

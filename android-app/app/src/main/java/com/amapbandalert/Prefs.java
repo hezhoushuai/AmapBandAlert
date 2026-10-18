@@ -60,8 +60,17 @@ public final class Prefs {
     public boolean overspeedEnabled() { return sp.getBoolean("overspeed_enabled", true); }
     public void setOverspeedEnabled(boolean v) { sp.edit().putBoolean("overspeed_enabled", v).apply(); }
 
-    /** 车辆以 5 秒持续超速作为触发条件。 */
-    public int overspeedSeconds() { return sp.getInt("overspeed_seconds", 5); }
+    /** 持续超速多少秒才提醒（默认 3 秒，避免 GPS 抖动）。 */
+    public int overspeedSeconds() { return sp.getInt("overspeed_seconds", 3); }
+    public void setOverspeedSeconds(int v) { sp.edit().putInt("overspeed_seconds", v).apply(); }
+
+    /** 没有道路限速数据时，是否用固定阈值兜底。 */
+    public boolean fixedLimitEnabled() { return sp.getBoolean("fixed_limit_enabled", false); }
+    public void setFixedLimitEnabled(boolean v) { sp.edit().putBoolean("fixed_limit_enabled", v).apply(); }
+
+    /** 固定限速阈值 km/h（40–120）。 */
+    public int fixedLimitKmh() { return sp.getInt("fixed_limit_kmh", 60); }
+    public void setFixedLimitKmh(int v) { sp.edit().putInt("fixed_limit_kmh", v).apply(); }
 
     /** 是否在停靠点前再补一次 50 米提醒。 */
     public boolean nearEnabled() { return sp.getBoolean("near_enabled", false); }
@@ -76,6 +85,9 @@ public final class Prefs {
                 .putBoolean("keyword_enabled", false)
                 .putBoolean("camera_enabled", true)
                 .putBoolean("overspeed_enabled", true)
+                .putInt("overspeed_seconds", 3)
+                .putBoolean("fixed_limit_enabled", false)
+                .putInt("fixed_limit_kmh", 60)
                 .putBoolean("near_enabled", false)
                 .apply();
     }

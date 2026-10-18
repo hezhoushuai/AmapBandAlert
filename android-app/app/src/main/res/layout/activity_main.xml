@@ -22,7 +22,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="v0.3.0 · 高德导航 → 小米手环 9 Pro 场景提醒"
+            android:text="v0.4.0 · 高德导航 → 小米手环 9 Pro 场景提醒"
             android:textColor="#8B98A9"
             android:textSize="13sp"
             android:paddingTop="2dp"
@@ -109,11 +109,33 @@
             android:backgroundTint="#37474F" />
 
         <Button
+            android:id="@+id/btn_test_speed"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="模拟超速 82/60（测试手环）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#8E3B00" />
+
+        <Button
             android:id="@+id/btn_scan"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="10dp"
             android:text="立即读取高德通知（诊断）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <Button
+            android:id="@+id/btn_capture_ui"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:text="记录高德界面文字 60 秒（诊断限速）"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
@@ -167,6 +189,28 @@
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
             android:text="电池优化：去设置（骑行保活）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#37474F" />
+
+        <Button
+            android:id="@+id/btn_location"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="定位权限：去允许（超速需要）"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#B26A00" />
+
+        <Button
+            android:id="@+id/btn_accessibility"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="高德界面限速：去开启（实验性）"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
@@ -255,15 +299,58 @@
             android:textColor="#E6EDF5"
             android:textSize="14sp" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="超速提醒"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingTop="26dp"
+            android:paddingBottom="4dp" />
+
         <Switch
             android:id="@+id/toggle_speed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingTop="4dp"
             android:paddingBottom="6dp"
-            android:text="超速提醒（仅高德车机版广播）"
+            android:text="超速提醒总开关（GPS / 车机广播 / 固定阈值）"
             android:textColor="#E6EDF5"
             android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/label_fixed_limit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="固定限速阈值：60 km/h（没有道路限速时使用）"
+            android:textColor="#C7D0DB"
+            android:textSize="14sp"
+            android:paddingTop="4dp" />
+
+        <SeekBar
+            android:id="@+id/bar_fixed_limit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <Switch
+            android:id="@+id/toggle_fixed_limit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp"
+            android:text="没有道路限速时，使用上面的固定阈值"
+            android:textColor="#E6EDF5"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="超速数据优先级：高德车机版广播（真实车速+真实限速，最准）＞ GPS 车速 + 高德界面限速（实验性）＞ GPS 车速 + 固定阈值。手机版高德不提供道路限速，所以要么装高德车机版导航，要么开启固定阈值，要么试试无障碍读取界面限速。"
+            android:textColor="#66717F"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:paddingTop="10dp" />
 
         <TextView
             android:layout_width="match_parent"

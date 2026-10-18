@@ -24,7 +24,9 @@ import java.util.Locale;
 public class MainActivity extends Activity {
 
     private static final int[] DISTANCES = {100, 150, 200, 300, 500};
+    private static final int[] FIXED_LIMITS = {40, 50, 60, 70, 80, 90, 100, 110, 120};
     private static final int REQ_NOTIFICATIONS = 101;
+    private static final int REQ_LOCATION = 102;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Runnable tick = this::refreshUi;
@@ -34,11 +36,15 @@ public class MainActivity extends Activity {
     private TextView sourceText;
     private TextView rawText;
     private TextView labelDistance;
+    private TextView labelFixedLimit;
     private SeekBar barDistance;
+    private SeekBar barFixedLimit;
     private Button btnStart;
     private Button btnListener;
     private Button btnNotifPerm;
     private Button btnBattery;
+    private Button btnLocation;
+    private Button btnAccessibility;
 
     private Switch toggleTurn;
     private Switch toggleNear;
@@ -47,6 +53,7 @@ public class MainActivity extends Activity {
     private Switch toggleKeyword;
     private Switch toggleCamera;
     private Switch toggleSpeed;
+    private Switch toggleFixedLimit;
 
     private boolean updatingSwitches;
 
@@ -62,11 +69,15 @@ public class MainActivity extends Activity {
         sourceText = findViewById(R.id.source_text);
         rawText = findViewById(R.id.raw_text);
         labelDistance = findViewById(R.id.label_distance);
+        labelFixedLimit = findViewById(R.id.label_fixed_limit);
         barDistance = findViewById(R.id.bar_distance);
+        barFixedLimit = findViewById(R.id.bar_fixed_limit);
         btnStart = findViewById(R.id.btn_start);
         btnListener = findViewById(R.id.btn_listener);
         btnNotifPerm = findViewById(R.id.btn_notif_perm);
         btnBattery = findViewById(R.id.btn_battery);
+        btnLocation = findViewById(R.id.btn_location);
+        btnAccessibility = findViewById(R.id.btn_accessibility);
 
         toggleTurn = findViewById(R.id.toggle_turn);
         toggleNear = findViewById(R.id.toggle_near);
@@ -75,6 +86,7 @@ public class MainActivity extends Activity {
         toggleKeyword = findViewById(R.id.toggle_keyword);
         toggleCamera = findViewById(R.id.toggle_camera);
         toggleSpeed = findViewById(R.id.toggle_speed);
+        toggleFixedLimit = findViewById(R.id.toggle_fixed_limit);
 
         wire();
         syncSwitches();
@@ -120,9 +132,26 @@ public class MainActivity extends Activity {
             AlertEngine.get().fireTestTurn();
             Toast.makeText(this, "已模拟一次左转提醒", Toast.LENGTH_SHORT).show();
         });
+        findViewById(R.id.btn_test_speed).setOnClickListener(v -> {
+            AlertEngine.get().fireTestOverspeed();
+            Toast.makeText(this, "已模拟超速 82/60", Toast.LENGTH_SHORT).show();
+        });
         findViewById(R.id.btn_scan).setOnClickListener(v -> {
             NavigationNotificationListener.dumpActive();
             Toast.makeText(this, "已把高德通知原文写入运行日志", Toast.LENGTH_SHORT).show();
+        });
+        findViewById(R.id.btn_capture_ui).setOnClickListener(v -> {
+            if (!hasAccessibilityAccess()) {
+                Toast.makeText(this, "先开启无障碍服务，再记录界面文字", Toast.LENGTH_LONG).show();
+                openAccessibilitySettings();
+                return;
+            }
+            if (!Prefs.get(this).enabled()) {
+                Toast.makeText(this, "请先启动监听", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            AmapAccessibilityService.startCapture(60);
+            Toast.makeText(this, "60 秒内切到高德导航，结束后查看运行日志", Toast.LENGTH_LONG).show();
         });
         findViewById(R.id.btn_log).setOnClickListener(v ->
                 startActivity(new Intent(this, LogActivity.class)));
@@ -130,9 +159,24 @@ public class MainActivity extends Activity {
         btnListener.setOnClickListener(v -> openNotificationAccess());
         btnNotifPerm.setOnClickListener(v -> requestNotifications());
         btnBattery.setOnClickListener(v -> requestIgnoreBattery());
+        btnLocation.setOnClickListener(v -> {
+            if (hasLocationPermission()) {
+                MonitorService.refreshLocation();
+                Toast.makeText(this, "定位已开启，GPS 车速可用", Toast.LENGTH_SHORT).show();
+            } else {
+                requestLocation();
+            }
+        });
+        btnAccessibility.setOnClickListener(v -> {
+            if (hasAccessibilityAccess()) {
+                Toast.makeText(this, "已开启；可点“记录高德界面”诊断", Toast.LENGTH_SHORT).show();
+            } else {
+                openAccessibilitySettings();
+            }
+        });
 
         barDistance.setMax(DISTANCES.length - 1);
-        int index = indexOfDistance(Prefs.get(this).turnDistance());
+        int index = indexOf(DISTANCES, Prefs.get(this).turnDistance());
         barDistance.setProgress(index, false);
         updateDistanceLabel(DISTANCES[index]);
         barDistance.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -140,6 +184,23 @@ public class MainActivity extends Activity {
                 int meters = DISTANCES[Math.max(0, Math.min(DISTANCES.length - 1, progress))];
                 updateDistanceLabel(meters);
                 if (fromUser) Prefs.get(MainActivity.this).setTurnDistance(meters);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        barFixedLimit.setMax(FIXED_LIMITS.length - 1);
+        int fixedIndex = indexOf(FIXED_LIMITS, Prefs.get(this).fixedLimitKmh());
+        barFixedLimit.setProgress(fixedIndex, false);
+        updateFixedLimitLabel(FIXED_LIMITS[fixedIndex]);
+        barFixedLimit.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int kmh = FIXED_LIMITS[Math.max(0, Math.min(FIXED_LIMITS.length - 1, progress))];
+                updateFixedLimitLabel(kmh);
+                if (fromUser) {
+                    Prefs.get(MainActivity.this).setFixedLimitKmh(kmh);
+                    AlertEngine.get().refreshOverspeed();
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
@@ -164,7 +225,18 @@ public class MainActivity extends Activity {
             if (!updatingSwitches) Prefs.get(this).setCameraEnabled(isChecked);
         });
         toggleSpeed.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (!updatingSwitches) Prefs.get(this).setOverspeedEnabled(isChecked);
+            if (!updatingSwitches) {
+                Prefs.get(this).setOverspeedEnabled(isChecked);
+                AlertEngine.get().refreshOverspeed();
+            }
+        });
+        toggleFixedLimit.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!updatingSwitches) {
+                Prefs.get(this).setFixedLimitEnabled(isChecked);
+                barFixedLimit.setEnabled(isChecked);
+                labelFixedLimit.setAlpha(isChecked ? 1f : 0.5f);
+                AlertEngine.get().refreshOverspeed();
+            }
         });
     }
 
@@ -193,6 +265,8 @@ public class MainActivity extends Activity {
             if (!hasNotificationAccess()) {
                 Toast.makeText(this, "还差一步：请授予通知使用权，才能读取高德导航", Toast.LENGTH_LONG).show();
                 openNotificationAccess();
+            } else if (!hasLocationPermission() && prefs.overspeedEnabled()) {
+                Toast.makeText(this, "未授权定位：超速只能用高德车机版广播，建议点“定位权限”", Toast.LENGTH_LONG).show();
             }
         }
         refreshUi();
@@ -208,6 +282,12 @@ public class MainActivity extends Activity {
         toggleKeyword.setChecked(p.keywordEnabled());
         toggleCamera.setChecked(p.cameraEnabled());
         toggleSpeed.setChecked(p.overspeedEnabled());
+        toggleFixedLimit.setChecked(p.fixedLimitEnabled());
+        barFixedLimit.setEnabled(p.fixedLimitEnabled());
+        labelFixedLimit.setAlpha(p.fixedLimitEnabled() ? 1f : 0.5f);
+        int idx = indexOf(FIXED_LIMITS, p.fixedLimitKmh());
+        if (barFixedLimit.getProgress() != idx) barFixedLimit.setProgress(idx, false);
+        updateFixedLimitLabel(FIXED_LIMITS[idx]);
         updatingSwitches = false;
     }
 
@@ -215,6 +295,8 @@ public class MainActivity extends Activity {
         boolean access = hasNotificationAccess();
         boolean post = hasPostNotifications();
         boolean battery = ignoresBattery();
+        boolean location = hasLocationPermission();
+        boolean accessibility = hasAccessibilityAccess();
         boolean running = MonitorService.isRunning();
         boolean enabled = Prefs.get(this).enabled();
 
@@ -245,6 +327,14 @@ public class MainActivity extends Activity {
         btnBattery.setBackgroundTintList(ColorStateList.valueOf(
                 Color.parseColor(battery ? "#2E7D32" : "#37474F")));
 
+        btnLocation.setText(location ? "定位权限：已开启（GPS 车速）" : "定位权限：去允许（超速需要）");
+        btnLocation.setBackgroundTintList(ColorStateList.valueOf(
+                Color.parseColor(location ? "#2E7D32" : "#B26A00")));
+
+        btnAccessibility.setText(accessibility ? "高德界面限速：已开启" : "高德界面限速：去开启（实验性）");
+        btnAccessibility.setBackgroundTintList(ColorStateList.valueOf(
+                Color.parseColor(accessibility ? "#2E7D32" : "#37474F")));
+
         syncSwitches();
         ui.removeCallbacks(tick);
         ui.postDelayed(tick, 1000);
@@ -254,11 +344,16 @@ public class MainActivity extends Activity {
         labelDistance.setText(String.format(Locale.CHINA, "转向提醒距离：%d 米", meters));
     }
 
-    private int indexOfDistance(int value) {
-        int best = 2;
+    private void updateFixedLimitLabel(int kmh) {
+        labelFixedLimit.setText(String.format(Locale.CHINA,
+                "固定限速阈值：%d km/h（没有道路限速时使用）", kmh));
+    }
+
+    private int indexOf(int[] values, int value) {
+        int best = 0;
         int diff = Integer.MAX_VALUE;
-        for (int i = 0; i < DISTANCES.length; i++) {
-            int d = Math.abs(DISTANCES[i] - value);
+        for (int i = 0; i < values.length; i++) {
+            int d = Math.abs(values[i] - value);
             if (d < diff) {
                 diff = d;
                 best = i;
@@ -283,10 +378,36 @@ public class MainActivity extends Activity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean hasLocationPermission() {
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasAccessibilityAccess() {
+        try {
+            String flat = Settings.Secure.getString(getContentResolver(),
+                    "enabled_accessibility_services");
+            if (flat == null) return false;
+            return flat.contains(getPackageName() + "/" + AmapAccessibilityService.class.getName())
+                    || (flat.contains(getPackageName()) && flat.contains("AmapAccessibilityService"));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     private void requestNotifications() {
         if (Build.VERSION.SDK_INT >= 33 && !hasPostNotifications()) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
         }
+    }
+
+    private void requestLocation() {
+        requestPermissions(new String[]{
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+        }, REQ_LOCATION);
     }
 
     private boolean ignoresBattery() {
@@ -322,6 +443,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void openAccessibilitySettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "请到系统设置 → 无障碍中开启", Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -330,6 +459,14 @@ public class MainActivity extends Activity {
             if (!hasPostNotifications()) {
                 Toast.makeText(this, "没有通知权限，手环收不到提醒", Toast.LENGTH_LONG).show();
             }
+        } else if (requestCode == REQ_LOCATION) {
+            if (hasLocationPermission()) {
+                MonitorService.refreshLocation();
+                Toast.makeText(this, "定位已开启，GPS 车速可用", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "没有定位权限，超速只能靠车机版广播", Toast.LENGTH_LONG).show();
+            }
+            refreshUi();
         }
     }
 }

@@ -11,9 +11,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 场景引擎：把“高德通知解析结果”和“高德车机版广播”统一成手环提醒。
+ * 场景引擎：把高德通知、车机版广播、GPS 车速和高德界面限速统一成手环提醒。
  *
- * <p>线程模型：通知监听、广播、UI 都在主线程，处理只做文本判断和发通知，足够轻量。</p>
+ * <p>线程模型：通知监听、广播、无障碍、定位回调都在主线程附近，处理只做文本判断和发通知，
+ * 足够轻量。</p>
  */
 public final class AlertEngine {
 
@@ -25,6 +26,11 @@ public final class AlertEngine {
             "拥堵", "事故", "施工", "封路", "限行",
             "重新规划", "偏航"
     };
+
+    /** 超过限速 3km/h 才认为超速，避免 GPS 抖动。 */
+    private static final int OVERSPEED_TOLERANCE = 3;
+    /** 同一段超速提醒后 30 秒内不重复。 */
+    private static final long OVERSPEED_COOLDOWN_MS = 30_000;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Map<String, Long> keywordAt = new HashMap<>();
@@ -40,8 +46,6 @@ public final class AlertEngine {
     private String lastInstruction = "";
     private String lastManeuver = "unknown";
     private int lastDistance = -1;
-    private int lastSpeed = -1;
-    private int lastLimit = -1;
     private long lastUpdateAt = 0;
     private boolean listenerConnected = false;
     private String lastFingerprint = "";
@@ -52,8 +56,27 @@ public final class AlertEngine {
     private boolean nearAlerted = false;
     private long lastTurnAlertAt = 0;
 
+    // 速度/限速数据源（各自带时间戳，按新鲜度择优）
+    private int broadcastSpeed = -1;
+    private int broadcastLimit = -1;
+    private long broadcastAt = 0;
+    private int gpsSpeed = -1;
+    private long gpsAt = 0;
+    private int uiLimit = -1;
+    private long uiAt = 0;
+    private int notificationLimit = -1;
+    private long notificationLimitAt = 0;
+    private int notificationSpeed = -1;
+    private long notificationSpeedAt = 0;
+
+    private int currentSpeed = -1;
+    private int currentLimit = -1;
+    private String limitSource = "";
+
     private long overspeedSince = 0;
     private long lastOverspeedAt = 0;
+    private int lastLimitForTimer = -1;
+
     private long lastCameraAt = 0;
     private int lastCameraDist = Integer.MAX_VALUE;
 
@@ -83,15 +106,22 @@ public final class AlertEngine {
         if (result == null) return;
         String previousRaw = lastRaw;
         String previousStatus = lastStatus;
+        long now = System.currentTimeMillis();
 
         lastSource = source;
-        lastUpdateAt = System.currentTimeMillis();
+        lastUpdateAt = now;
         lastRaw = result.rawText;
         lastInstruction = result.instruction;
         lastManeuver = result.maneuver;
         lastDistance = result.distanceM;
-        if (result.speed > 0) lastSpeed = result.speed;
-        if (result.limit > 0) lastLimit = result.limit;
+        if (result.limit > 0) {
+            notificationLimit = result.limit;
+            notificationLimitAt = now;
+        }
+        if (result.speed > 0) {
+            notificationSpeed = result.speed;
+            notificationSpeedAt = now;
+        }
         lastRerouted = result.rerouted;
 
         if (!result.fingerprint().equals(lastFingerprint)) {
@@ -100,7 +130,8 @@ public final class AlertEngine {
                     "解析[" + source + "] " + result.status + " "
                             + result.instruction
                             + (result.distanceM > 0 ? " " + result.distanceM + "m" : "")
-                            + (result.road.isEmpty() ? "" : " / " + result.road));
+                            + (result.road.isEmpty() ? "" : " / " + result.road)
+                            + (result.limit > 0 ? " 限速" + result.limit : ""));
         }
 
         if (result.isActive()) {
@@ -118,6 +149,7 @@ public final class AlertEngine {
         }
 
         lastStatus = result.status;
+        evaluateOverspeed(now);
         notifyUi();
     }
 
@@ -208,16 +240,22 @@ public final class AlertEngine {
 
     /**
      * 高德车机版/AmapAuto 广播入口。
-     * 手机版高德通常不发送该广播；此通道保留给车机版用户，也能兼容后续魔改版。
+     * 手机版高德通常不发送该广播；此通道保留给车机版用户。
      */
     public void onBroadcast(int curSpeed, int limitSpeed, int cameraType,
                             int cameraDist, int cameraSpeed) {
-        lastSource = "车机广播";
-        lastUpdateAt = System.currentTimeMillis();
-        if (limitSpeed > 0) lastLimit = limitSpeed;
-        if (curSpeed > 0) lastSpeed = curSpeed;
-
         long now = System.currentTimeMillis();
+        lastSource = "车机广播";
+        lastUpdateAt = now;
+        if (curSpeed > 0) {
+            broadcastSpeed = curSpeed;
+            broadcastAt = now;
+        }
+        if (limitSpeed > 0) {
+            broadcastLimit = limitSpeed;
+            broadcastAt = now;
+        }
+
         if (prefs.cameraEnabled() && cameraType != 0 && cameraDist > 0) {
             if (cameraDist <= 300 && now - lastCameraAt > 15000
                     && (cameraDist <= lastCameraDist || lastCameraDist == Integer.MAX_VALUE)) {
@@ -230,18 +268,104 @@ public final class AlertEngine {
             lastCameraDist = Integer.MAX_VALUE;
         }
 
-        if (prefs.overspeedEnabled() && limitSpeed > 0 && curSpeed > limitSpeed) {
+        evaluateOverspeed(now);
+        notifyUi();
+    }
+
+    /** GPS 速度（km/h），由前台定位监听回调。 */
+    public void onGpsSpeed(int kmh) {
+        long now = System.currentTimeMillis();
+        gpsSpeed = kmh;
+        gpsAt = now;
+        evaluateOverspeed(now);
+        notifyUi();
+    }
+
+    /** 固定阈值等设置变化后立即重算一次。 */
+    public void refreshOverspeed() {
+        evaluateOverspeed(System.currentTimeMillis());
+        notifyUi();
+    }
+
+    /** 高德导航界面读到的道路限速（无障碍，实验性）。 */
+    public void onUiLimit(int limit) {
+        if (limit <= 0) return;
+        uiLimit = limit;
+        uiAt = System.currentTimeMillis();
+        AlertLogger.log(AlertLogger.Tag.BROADCAST, "高德界面限速=" + limit);
+        evaluateOverspeed(uiAt);
+        notifyUi();
+    }
+
+    /**
+     * 统一超速判断。
+     * 速度优先级：车机广播 > GPS > 通知里的“当前车速”。
+     * 限速优先级：车机广播 > 高德界面 > 通知文字 > 固定阈值。
+     */
+    private void evaluateOverspeed(long now) {
+        if (prefs == null) return;
+        if (!prefs.overspeedEnabled()) {
+            overspeedSince = 0;
+            return;
+        }
+
+        int speed = -1;
+        String speedSource = "";
+        if (broadcastAt > 0 && now - broadcastAt < 6000 && broadcastSpeed > 0) {
+            speed = broadcastSpeed;
+            speedSource = "车机广播";
+        } else if (gpsAt > 0 && now - gpsAt < 5000 && gpsSpeed > 0) {
+            speed = gpsSpeed;
+            speedSource = "GPS";
+        } else if (notificationSpeedAt > 0 && now - notificationSpeedAt < 15000
+                && notificationSpeed > 0) {
+            speed = notificationSpeed;
+            speedSource = "通知";
+        }
+
+        int limit = -1;
+        String limitSrc = "";
+        if (broadcastAt > 0 && now - broadcastAt < 10000 && broadcastLimit > 0) {
+            limit = broadcastLimit;
+            limitSrc = "车机广播";
+        } else if (uiAt > 0 && now - uiAt < 15000 && uiLimit > 0) {
+            limit = uiLimit;
+            limitSrc = "高德界面";
+        } else if (notificationLimitAt > 0 && now - notificationLimitAt < 20000
+                && notificationLimit > 0) {
+            limit = notificationLimit;
+            limitSrc = "通知";
+        } else if (prefs.fixedLimitEnabled()) {
+            limit = prefs.fixedLimitKmh();
+            limitSrc = "固定阈值";
+        }
+
+        currentSpeed = speed;
+        currentLimit = limit;
+        limitSource = speedSource.isEmpty() && limitSrc.isEmpty()
+                ? "" : (speedSource + (limitSrc.isEmpty() ? "" : " · " + limitSrc));
+
+        if (speed <= 0 || limit <= 0) {
+            overspeedSince = 0;
+            lastLimitForTimer = limit;
+            return;
+        }
+        if (limit != lastLimitForTimer) {
+            overspeedSince = 0;
+            lastLimitForTimer = limit;
+        }
+
+        if (speed > limit + OVERSPEED_TOLERANCE) {
             if (overspeedSince == 0) overspeedSince = now;
             if (now - overspeedSince >= prefs.overspeedSeconds() * 1000L
-                    && now - lastOverspeedAt > 30000) {
+                    && now - lastOverspeedAt > OVERSPEED_COOLDOWN_MS) {
                 lastOverspeedAt = now;
                 overspeedSince = now;
-                AlertNotifier.notifyOverspeed(app, curSpeed, limitSpeed);
+                AlertNotifier.notifyOverspeed(app, speed, limit);
             }
-        } else if (limitSpeed > 0) {
+        } else {
             overspeedSince = 0;
         }
-        notifyUi();
     }
 
     private void resetTurnState() {
@@ -259,11 +383,25 @@ public final class AlertEngine {
         lastInstruction = "";
         lastManeuver = "unknown";
         lastDistance = -1;
-        lastSpeed = -1;
-        lastLimit = -1;
         lastUpdateAt = 0;
         lastFingerprint = "";
         lastRerouted = false;
+        broadcastSpeed = -1;
+        broadcastLimit = -1;
+        broadcastAt = 0;
+        gpsSpeed = -1;
+        gpsAt = 0;
+        uiLimit = -1;
+        uiAt = 0;
+        notificationLimit = -1;
+        notificationLimitAt = 0;
+        notificationSpeed = -1;
+        notificationSpeedAt = 0;
+        currentSpeed = -1;
+        currentLimit = -1;
+        limitSource = "";
+        overspeedSince = 0;
+        lastLimitForTimer = -1;
         resetTurnState();
         notifyUi();
     }
@@ -275,6 +413,16 @@ public final class AlertEngine {
                 "active", "测试", "前方200米左转进入测试路", "left",
                 "左转 测试路", "测试路", 200, 45, 60, false, System.currentTimeMillis());
         AlertNotifier.notifyTurn(app, r);
+    }
+
+    public void fireTestOverspeed() {
+        if (app == null) return;
+        AlertLogger.log(AlertLogger.Tag.INFO, "手动触发模拟超速 82/60");
+        currentSpeed = 82;
+        currentLimit = 60;
+        limitSource = "测试";
+        AlertNotifier.notifyOverspeed(app, 82, 60);
+        notifyUi();
     }
 
     public void fireTestNotification() {
@@ -289,7 +437,6 @@ public final class AlertEngine {
     }
 
     public String statusLine() {
-        if (!listenerConnected) return "通知监听：未连接（请授予通知使用权）";
         if ("active".equals(lastStatus)) {
             StringBuilder sb = new StringBuilder("导航中");
             if (!"unknown".equals(lastManeuver)) {
@@ -301,6 +448,10 @@ public final class AlertEngine {
             return sb.toString();
         }
         if ("ended".equals(lastStatus)) return "导航已结束";
+        if (broadcastAt > 0 && System.currentTimeMillis() - broadcastAt < 5000) {
+            return "车机广播导航中";
+        }
+        if (!listenerConnected) return "通知监听：未连接（请授予通知使用权）";
         return "等待高德导航…";
     }
 
@@ -316,19 +467,33 @@ public final class AlertEngine {
 
     public String detailLine() {
         StringBuilder sb = new StringBuilder();
-        if (lastSpeed > 0) sb.append("当前 ").append(lastSpeed);
-        if (lastLimit > 0) {
-            if (sb.length() > 0) sb.append(" · ");
-            sb.append("限速 ").append(lastLimit);
+        if (currentSpeed > 0 || currentLimit > 0) {
+            sb.append("车速 ").append(currentSpeed > 0 ? currentSpeed + " km/h" : "--");
+            sb.append(" · 限速 ").append(currentLimit > 0 ? currentLimit + " km/h" : "--");
+            if (!limitSource.isEmpty()) sb.append(" · ").append(limitSource);
+        } else {
+            sb.append("车速/限速：尚未获取");
+            if (prefs != null && !prefs.fixedLimitEnabled()) {
+                sb.append("（可开启固定阈值）");
+            }
         }
         if (lastRerouted) {
             if (sb.length() > 0) sb.append(" · ");
             sb.append("路线已重新规划");
         }
-        return sb.length() == 0 ? "车速/限速：通知未提供" : sb.toString();
+        return sb.toString();
     }
 
     public boolean isNavActive() { return "active".equals(lastStatus); }
+
+    public boolean isOverspeeding() {
+        return currentSpeed > 0 && currentLimit > 0
+                && currentSpeed > currentLimit + OVERSPEED_TOLERANCE;
+    }
+
+    public int currentSpeedKmh() { return currentSpeed; }
+    public int currentLimitKmh() { return currentLimit; }
+    public String limitSource() { return limitSource; }
 
     public String getLastRaw() { return lastRaw; }
 }
