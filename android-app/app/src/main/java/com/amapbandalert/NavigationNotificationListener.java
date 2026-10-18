@@ -30,6 +30,13 @@ public final class NavigationNotificationListener extends NotificationListenerSe
         AlertEngine.get().init(this);
         AlertLogger.log(AlertLogger.Tag.INFO, "通知监听服务已连接");
         AlertEngine.get().setListenerConnected(true);
+        if (Prefs.get(this).enabled() && !MonitorService.isRunning()) {
+            try {
+                MonitorService.start(this);
+            } catch (RuntimeException e) {
+                AlertLogger.log(AlertLogger.Tag.ERROR, "监听连接后恢复前台服务失败: " + e.getMessage());
+            }
+        }
         schedule(0);
     }
 
