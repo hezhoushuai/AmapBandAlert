@@ -14,6 +14,62 @@
 
 `AUTONAVI_STANDARD_BROADCAST_SEND` 是车机版协议，能拿到摄像头距离/限速/车速，但拿不到完整路线几何和全部摄像头坐标。
 
+## 路线分享 / 群组能利用到什么程度
+
+结论：**路线分享可以利用，但只能当“起终点/途经点导入”，不能直接拿到摄像头数据；群组没有公开数据接口。**
+
+| 功能 | 能拿到 | 拿不到 | 怎么用 |
+|---|---|---|---|
+| 路线分享链接 | 起点、终点、途经点、出行方式/策略（取决于链接格式） | 摄像头列表、实时距离、车速 | 解析后交给 AMap SDK 重新算路 |
+| 群组/组队 | 群成员位置/目的地（仅在高德 App 内） | 任何第三方 API | 不要依赖；可在群里发路线链接，各自导入 |
+
+### 推荐用法：分享链接当“目的地输入”
+
+```text
+高德 App 选好路线
+   → 分享 / 复制链接
+   → AmapBandAlert 接收 ACTION_SEND 文本
+   → 解析 from/to/via（或 slat/slon/dlat/dlon）
+   → AMap SDK calculateDriveRoute()
+   → getCoordList() + getAllCameras()
+   → 路线/摄像头/距离/车速 → 手机地图 + ESP32
+```
+
+这样用户不用在我们 App 里重新搜目的地，但**摄像头数据仍然来自我们自己的 SDK 导航会话**，不是分享链接。
+
+### 需要兼容的链接格式
+
+官方 URI API 的路径规划格式（最可靠）：
+
+```text
+https://uri.amap.com/navigation?from=lon,lat,name&to=lon,lat,name&via=lon,lat,name&mode=car&policy=0&callnative=1
+```
+
+注意 `from/to/via` 是 **经度,纬度,名称**，不是纬度在前。
+
+旧版 Android URI 可能是：
+
+```text
+amapuri://route/plan/?slat=..&slon=..&sname=..&dlat=..&dlon=..&dname=..&dev=0&t=0
+androidamap://navi?sourceApplication=..&poiname=..&lat=..&lon=..&dev=0&style=2
+```
+
+高德 App 实际“分享”出来的可能是短链（`s.amap.com` 之类）或网页，需要先解析跳转/页面参数；如果只是图片/二维码，就没有结构化数据。
+
+### 关键限制
+
+- 分享链接里的 `policy` 只是偏好，重新算路可能和高德 App 当前实际路线不完全一致；偏航/封路时会分叉。
+- 如果链接只有地点名没有坐标，需要地理编码/POI 搜索补齐。
+- 解析短链/网页可能受登录、反爬、页面改版影响；**优先解析官方 URI 参数**，不要把爬网页当长期方案。
+- 群组的实时位置是社交数据，没有公开接口；读取它涉及隐私，不建议做。
+
+### 实施建议
+
+1. 给 App 加 `ACTION_SEND`（`text/plain`）接收，用户从高德“分享”到 AmapBandAlert。
+2. 写一个纯 Java `RouteShareParser`，支持上面的 `uri.amap.com/navigation`、`amapuri://route/plan`、`androidamap://navi`。
+3. 解析出坐标后调用 AMap SDK 算路；解析失败就提示用户手动输入终点。
+4. 分享只作为入口，摄像头/距离/车速仍由 SDK 回调提供。
+
 ## SDK 数据映射
 
 | 你要的数据 | SDK API | 说明 |
